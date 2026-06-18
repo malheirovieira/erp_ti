@@ -1,23 +1,45 @@
-export const menuConfig: Record<string, Array<{ label: string; path: string }>> = {
-  COMERCIAL: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  COMPRAS: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  DIRETORIA: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  DP: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  EXPEDICAO: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  FINANCEIRO: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  LOGISTICA: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  MANUTENCAO: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  OPERACIONAL: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  PCP: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  QUALIDADE: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  RECEPCAO: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  RH: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
+// src/menuConfig.ts
+
+const SUPORTE_ITEM = { label: 'Suporte Técnico', path: 'suporte-tecnico', icon: 'Headset' };
+
+const menusBase: Record<string, Array<{ label: string; path: string; icon: string }>> = {
+  COMERCIAL: [],
+  COMPRAS: [],
+  DIRETORIA: [],
+  DP: [],
+  EXPEDICAO: [],
+  FINANCEIRO: [],
+  LOGISTICA: [],
+  MANUTENCAO: [],
+  OPERACIONAL: [],
+  PCP: [],
+  QUALIDADE: [],
+  RECEPCAO: [],
+  RH: [],
   TI: [
-    { label: 'Visão Geral', path: '/home/visao-geral' },
-    { label: 'Suporte Técnico', path: '/home/suporte-tecnico' },
-    { label: 'Automação SQL', path: '/home/automacao-sql' },
-    { label: 'Backups & Servidores', path: '/home/backups' }
+    { label: 'Visão Geral', path: 'visao-geral', icon: 'LayoutDashboard' },
+    { label: 'Automação SQL', path: 'automacao-sql', icon: 'Database' },
+    { label: 'Backups & Servidores', path: 'backups', icon: 'DatabaseBackup' }
   ],
-  COMUM: [{ label: 'Suporte Técnico', path: '/home/suporte-tecnico' }],
-  AUTH: [{ label: 'Login', path: '/login' }]
+  AUTH: [
+    { label: 'Login', path: '/login', icon: 'LogIn' }
+  ]
 };
+
+// Função para gerar o menu mesclado
+const gerarMenuComSuporte = () => {
+  const menuFinal: Record<string, Array<{ label: string; path: string; icon: string }>> = {};
+  
+  Object.keys(menusBase).forEach((setor) => {
+    // Não adicionamos Suporte na tela de Login (AUTH)
+    if (setor === 'AUTH') {
+      menuFinal[setor] = menusBase[setor];
+    } else {
+      menuFinal[setor] = [SUPORTE_ITEM, ...menusBase[setor]];
+    }
+  });
+  
+  return menuFinal;
+};
+
+export const menuConfig = gerarMenuComSuporte();
