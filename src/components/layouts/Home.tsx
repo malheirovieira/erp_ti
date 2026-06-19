@@ -1,25 +1,28 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { menuConfig } from '../../menuConfig';
 import { useEmpresa } from '../../context/EmpresaContext';
 import * as LucideIcons from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { ProfileModal } from '../layouts/ProfileModal';
 
 export const Home: React.FC = () => {
   const { empresa, corTema } = useEmpresa();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, setTheme } = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   const profileRef = useRef<HTMLDivElement>(null);
   const nomeUsuario = localStorage.getItem('userName') || 'Usuário';
   const userSetor = localStorage.getItem('userSetor') || 'TI';
-  
-  // Busca os itens brutos do menu
+
   const itensMenuRaw = (menuConfig as any)[userSetor] || [];
 
-  // Garante que "Visão geral" sempre seja o primeiro item da lista
   const itensMenu = useMemo(() => {
     const lista = [...itensMenuRaw];
     const indexVisaoGeral = lista.findIndex(
@@ -39,6 +42,22 @@ export const Home: React.FC = () => {
     return nome.substring(0, 2).toUpperCase();
   };
 
+  const handleLogout = () => {
+    setIsProfileOpen(false);
+    setIsLoggingOut(true);
+    
+    if (nomeUsuario) {
+      localStorage.setItem(`theme_${nomeUsuario}`, theme);
+    }
+    
+    setTimeout(() => {
+      setTheme('light');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userSetor');
+      navigate('/login');
+    }, 1000);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
@@ -50,7 +69,7 @@ export const Home: React.FC = () => {
   }, []);
 
   const menuPerfilItens = useMemo(() => [
-    { label: 'Meu Perfil', icon: 'User', action: () => console.log('Perfil') },
+    { label: 'Meu Perfil', icon: 'User', action: () => setIsProfileModalOpen(true) },
     { label: 'Ajuda', icon: 'LifeBuoy', action: () => console.log('Ajuda') },
     { label: 'Configurações da Conta', icon: 'Settings', action: () => console.log('Config') },
     { 
@@ -61,39 +80,50 @@ export const Home: React.FC = () => {
   ], [theme, toggleTheme]);
 
   return (
-    <div className={`h-screen w-screen flex flex-col font-sans overflow-hidden transition-colors duration-700 ${theme === 'dark' ? 'bg-[#35363a]' : 'bg-[#f8f9fa]'}`}>
+    <div className={`h-screen w-screen flex flex-col font-sans overflow-hidden transition-colors duration-700 animate-page-in ${theme === 'dark' ? 'bg-[#35363a]' : 'bg-[#f8f9fa]'}`}>
       
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Suaviza a transição dos textos das subpáginas */
         .dark main h1, .dark main h2, .dark main h3, .dark main p, .dark main span, .dark main .bg-white {
           transition: color 0.7s ease-in-out, background-color 0.7s ease-in-out, border-color 0.7s ease-in-out !important;
         }
         
-        /* Textos Principais */
         .dark main h1, .dark main h2, .dark main h3,
         .dark main .text-gray-900, .dark main .text-gray-800, 
         .dark main .text-slate-900, .dark main .text-slate-800 {
           color: #e8eaed !important;
         }
         
-        /* Textos Secundários */
         .dark main p,
         .dark main .text-gray-600, .dark main .text-gray-500, .dark main .text-gray-400,
         .dark main .text-slate-600, .dark main .text-slate-500, .dark main .text-slate-400 {
           color: #b0b3b8 !important;
         }
         
-        /* Cards */
         .dark main .bg-white {
           background-color: #404145 !important;
           border-color: #4a4b50 !important;
         }
+
+        @keyframes customFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-custom-fade {
+          animation: customFadeIn 0.5s ease-in-out forwards;
+        }
+
+        @keyframes pageFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-page-in {
+          animation: pageFadeIn 0.7s ease-in-out forwards;
+        }
       `}</style>
 
-      {/* HEADER */}
       <header 
         className="px-6 flex items-center justify-between z-20 shrink-0 shadow-[0_7px_10px_rgba(0,0,0,0.15)] transition-colors duration-700" 
         style={{ height: '85px', backgroundColor: theme === 'dark' ? '#202124' : corTema }}
@@ -123,7 +153,6 @@ export const Home: React.FC = () => {
             </span>
           </div>
 
-          {/* DROPDOWN DE PERFIL */}
           {isProfileOpen && (
             <div className={`absolute top-20 right-0 w-64 rounded-lg shadow-xl border py-2 z-50 ${theme === 'dark' ? 'bg-[#404145] border-[#4a4b50]' : 'bg-white border-gray-100'}`}>
               <div className={`px-4 py-3 border-b ${theme === 'dark' ? 'border-[#4a4b50]' : 'border-gray-100'}`}>
@@ -152,7 +181,10 @@ export const Home: React.FC = () => {
               </nav>
               
               <div className={`border-t pt-2 ${theme === 'dark' ? 'border-[#4a4b50]' : 'border-gray-100'}`}>
-                <button className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-red-500 ${theme === 'dark' ? 'hover:bg-red-900/20' : 'hover:bg-red-50'}`}>
+                <button 
+                  onClick={handleLogout}
+                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-red-500 ${theme === 'dark' ? 'hover:bg-red-900/20' : 'hover:bg-red-50'}`}
+                >
                   <LucideIcons.LogOut size={18} /> Sair
                 </button>
               </div>
@@ -162,9 +194,7 @@ export const Home: React.FC = () => {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* BARRA LATERAL */}
         <aside className={`border-r h-full flex flex-col shrink-0 transition-all duration-700 ease-in-out ${isSidebarOpen ? 'w-64' : 'w-20'} ${theme === 'dark' ? 'bg-[#2a2b2e] border-[#35363a]' : 'bg-white border-[#dee2e6]'}`}>
-          
           <div className="p-6 flex items-center justify-center">
              <LucideIcons.Menu 
                 className="text-gray-400 cursor-pointer hover:text-[#E95C13] transition-colors" 
@@ -176,24 +206,25 @@ export const Home: React.FC = () => {
           <nav className="flex-1 overflow-y-auto no-scrollbar pt-2 space-y-0">
             {itensMenu.map((item: any) => {
               const IconComponent = (LucideIcons as any)[item.icon] || LucideIcons.LayoutDashboard;
+              const pathString = String(item.path);
+              const normalizedPath = pathString.startsWith('/') ? pathString : `/${pathString}`;
+              const currentPath = location.pathname;
+              const isActive = normalizedPath === '/' ? currentPath === '/' || currentPath === '' : currentPath.includes(normalizedPath);
               
               return (
                 <Link 
                   key={item.path} 
                   to={item.path} 
-                  className={`flex items-center gap-4 px-6 py-3 text-sm transition-all duration-700 border-l-4 border-transparent hover:border-[#E95C13] ${
+                  className={`flex items-center gap-4 px-6 py-3 text-sm transition-all duration-200 border-l-4 ${
+                    isActive ? 'border-[#E95C13]' : 'border-transparent hover:border-[#E95C13]'
+                  } ${
                     theme === 'dark' 
-                      ? 'text-[#e8eaed] hover:bg-[#404145] hover:text-[#E95C13]' 
-                      : 'text-gray-600 hover:bg-orange-50 hover:text-[#E95C13]'
+                      ? isActive ? 'text-[#E95C13] bg-[#404145]' : 'text-[#e8eaed] hover:bg-[#404145] hover:text-[#E95C13]'
+                      : isActive ? 'text-[#E95C13] bg-orange-50' : 'text-gray-600 hover:bg-orange-50 hover:text-[#E95C13]'
                   }`}
                 >
-                  <IconComponent size={22} className="shrink-0 transition-transform duration-700" />
-                  
-                  <span className={`font-medium whitespace-nowrap transition-all duration-700 ease-in-out ${
-                    isSidebarOpen 
-                      ? 'opacity-100 max-w-[200px] translate-x-0 delay-200' 
-                      : 'opacity-0 max-w-0 overflow-hidden -translate-x-4 pointer-events-none'
-                  }`}>
+                  <IconComponent size={22} className={`shrink-0 ${isActive ? 'text-[#E95C13]' : ''}`} />
+                  <span className={`font-medium whitespace-nowrap transition-all duration-700 ease-in-out ${isSidebarOpen ? 'opacity-100 max-w-[200px] translate-x-0 delay-200' : 'opacity-0 max-w-0 overflow-hidden -translate-x-4 pointer-events-none'}`}>
                     {item.label}
                   </span>
                 </Link>
@@ -201,24 +232,30 @@ export const Home: React.FC = () => {
             })}
           </nav>
 
-          {/* AJUSTADO: Rodapé agora usa puramente transition-opacity e whitespace-nowrap */}
-          <div 
-            title="Desenvolvido por Gabriel Malheiro e Henrique Arroyo."
-            className={`p-4 text-[12px] text-center font-medium text-gray-400 cursor-help transition-opacity duration-700 ease-in-out whitespace-nowrap overflow-hidden ${
-              isSidebarOpen 
-                ? 'opacity-100 delay-300' 
-                : 'opacity-0 delay-0 pointer-events-none'
-            }`}
-          >
+          <div title="Desenvolvido por Gabriel Malheiro e Henrique Arroyo." className={`p-4 text-[12px] text-center font-medium text-gray-400 cursor-help transition-opacity duration-700 ease-in-out whitespace-nowrap overflow-hidden ${isSidebarOpen ? 'opacity-100 delay-300' : 'opacity-0 delay-0 pointer-events-none'}`}>
             © 2026 Tecnologia da Informação
           </div>
         </aside>
 
-        {/* CONTAINER DO CONTEÚDO PRINCIPAL */}
         <main className={`flex-1 p-8 overflow-y-auto transition-colors duration-700 ${theme === 'dark' ? 'bg-[#35363a]' : 'bg-[#f8f9fa]'}`} onClick={() => setIsProfileOpen(false)}>
           <Outlet />
         </main>
       </div>
+
+      <ProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+        userName={nomeUsuario} 
+      />
+
+      {isLoggingOut && (
+        <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center backdrop-blur-md animate-custom-fade ${theme === 'dark' ? 'bg-[#202124]/90' : 'bg-white/90'}`}>
+          <LucideIcons.Loader2 className="animate-spin text-[#E95C13] mb-4" size={42} />
+          <p className={`text-base font-semibold animate-pulse tracking-wide ${theme === 'dark' ? 'text-[#e8eaed]' : 'text-gray-700'}`}>
+            Encerrando sessão...
+          </p>
+        </div>
+      )}
     </div>
   );
 };
