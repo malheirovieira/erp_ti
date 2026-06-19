@@ -18,9 +18,27 @@ export const Home: React.FC = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
+  // Estados para dados do usuário vindos do back-end
+  const [nomeUsuario, setNomeUsuario] = useState(localStorage.getItem('userName') || 'Usuário');
+  const [userSetor, setUserSetor] = useState(localStorage.getItem('userSetor') || 'TI');
+  
   const profileRef = useRef<HTMLDivElement>(null);
-  const nomeUsuario = localStorage.getItem('userName') || 'Usuário';
-  const userSetor = localStorage.getItem('userSetor') || 'TI';
+
+  // Busca dados do usuário no back-end ao montar o componente
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch('http://192.168.2.155:7000/usuarios/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        setNomeUsuario(data.nome);
+        setUserSetor(data.departamento?.nome || 'TI');
+      })
+      .catch(err => console.error("Erro ao buscar dados do usuário:", err));
+    }
+  }, []);
 
   const itensMenuRaw = (menuConfig as any)[userSetor] || [];
 
@@ -53,6 +71,7 @@ export const Home: React.FC = () => {
     
     setTimeout(() => {
       setTheme('light');
+      localStorage.removeItem('token');
       localStorage.removeItem('userName');
       localStorage.removeItem('userSetor');
       navigate('/login');
