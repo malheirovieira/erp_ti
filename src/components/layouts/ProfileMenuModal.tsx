@@ -2,13 +2,13 @@ import React, { useState, useRef } from 'react';
 import { X, Camera, Pencil, Lock } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
-interface ProfileModalProps {
+interface ProfileMenuModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, userName }) => {
+export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({ isOpen, onClose, userName }) => {
   const { theme } = useTheme();
   const modalRef = useRef<HTMLDivElement>(null);
   
