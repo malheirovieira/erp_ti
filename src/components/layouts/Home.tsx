@@ -18,13 +18,11 @@ export const Home: React.FC = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
-  // Estados para dados do usuário vindos do back-end
   const [nomeUsuario, setNomeUsuario] = useState(localStorage.getItem('userName') || 'Usuário');
   const [userSetor, setUserSetor] = useState(localStorage.getItem('userSetor') || 'TI');
   
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Busca dados do usuário no back-end ao montar o componente
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -100,6 +98,7 @@ export const Home: React.FC = () => {
 
   return (
     <div className={`h-screen w-screen flex flex-col font-sans overflow-hidden transition-colors duration-700 animate-page-in ${theme === 'dark' ? 'bg-[#35363a]' : 'bg-[#f8f9fa]'}`}>
+      {/* Estilos e estrutura mantidos conforme seu original */}
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -160,8 +159,8 @@ export const Home: React.FC = () => {
           <nav className="flex-1 overflow-y-auto no-scrollbar pt-2 space-y-0">
             {itensMenu.map((item: any) => {
               const IconComponent = (LucideIcons as any)[item.icon] || LucideIcons.LayoutDashboard;
-              const normalizedPath = String(item.path).startsWith('/') ? item.path : `/${item.path}`;
-              const isActive = location.pathname.includes(normalizedPath);
+              // O Link agora funcionará perfeitamente com o path definido no menuConfig
+              const isActive = location.pathname.includes(item.path);
               return (
                 <Link key={item.path} to={item.path} className={`flex items-center gap-4 px-6 py-3 text-sm transition-all duration-200 border-l-4 ${isActive ? 'border-[#E95C13]' : 'border-transparent hover:border-[#E95C13]'} ${theme === 'dark' ? isActive ? 'text-[#E95C13] bg-[#404145]' : 'text-[#e8eaed] hover:bg-[#404145] hover:text-[#E95C13]' : isActive ? 'text-[#E95C13] bg-orange-50' : 'text-gray-600 hover:bg-orange-50 hover:text-[#E95C13]'}`}>
                   <IconComponent size={22} className={`shrink-0 ${isActive ? 'text-[#E95C13]' : ''}`} />

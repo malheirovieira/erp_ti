@@ -1,14 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { EmpresaProvider } from './context/EmpresaContext';
-import { ThemeProvider } from './context/ThemeContext'; // Importe o Provider
-import { AutomacaoSQL } from './pages/TI/AutomacaoSQL';
-import { BackupsServidores } from './pages/TI/BackupsServidores';
+import { ThemeProvider } from './context/ThemeContext'; 
+
 import { Login } from './pages/Login';
-import { VisaoGeral } from './pages/TI/VisaoGeral';
 import { Cadastro } from './pages/Cadastro';
 import { Home } from './components/layouts/Home';
 
-const SuporteTecnico = () => <div className="p-8">Módulo de Suporte Técnico</div>;
+import { AutomacaoSQL } from './pages/TI/Automacao/AutomacaoSQL';
+import { BackupsServidores } from './pages/TI/Backup/BackupsServidores';
+
+import SuporteTecnico from './pages/TI/SuporteTecnico'; 
+import { VisaoGeral } from './pages/VisaoGeral/VisaoGeral';
 
 export default function App() {
   return (
@@ -24,7 +26,7 @@ export default function App() {
               <Route path="visao-geral" element={<VisaoGeral />} />
               <Route path="automacao-sql" element={<AutomacaoSQL />} />
               <Route path="backups" element={<BackupsServidores />} />
-              <Route path="suporte-tecnico" element={<SuporteTecnico />} />
+              <Route path="suporte-tecnico" element={<SuporteTecnico />} /> 
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />
