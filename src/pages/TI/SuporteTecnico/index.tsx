@@ -1,9 +1,11 @@
 import { useState } from 'react'; // Importado useState para gerenciar o clique dos cards
+import { Plus } from 'lucide-react';
 import DashboardCards from './components/DashboardCards';
 import TicketFilters from './components/TicketFilters';
 import TicketModal from './components/TicketModal';
+import NovoChamadoModal from './components/NovoChamadoModal';
 import { useTicketStore } from '../../../store/useTicketStore';
-import type { Ticket } from './types/ticket';
+import type { NovoChamadoInput, Ticket } from './types/ticket';
 
 export default function SuporteTecnico() {
     const setSelectedTicket = useTicketStore(
@@ -13,52 +15,20 @@ export default function SuporteTecnico() {
     // Estado responsável por armazenar o filtro ativo vindo dos DashboardCards
     const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
 
-    // Mock de dados para exibição inicial dos chamados
-    const tickets: Ticket[] = [
-        {
-            id: 1,
-            titulo: 'Falha no Servidor Principal',
-            categoria: 'Infraestrutura',
-            prioridade: 'Crítica',
-            cliente: 'Empresa A',
-            usuario: 'João Silva',
-            descricao: 'Servidor principal indisponível desde às 08:00.',
-            status: 'Aberto',
-            responsavel: 'Gabriel'
-        },
-        {
-            id: 2,
-            titulo: 'Sem acesso à internet',
-            categoria: 'Rede',
-            prioridade: 'Alta',
-            cliente: 'Empresa B',
-            usuario: 'João Silva',
-            descricao: 'Usuários do setor administrativo sem acesso.',
-            status: 'Em andamento',
-            responsavel: 'Carlos'
-        },
-        {
-            id: 3,
-            titulo: 'Erro no ERP',
-            categoria: 'Sistemas',
-            prioridade: 'Média',
-            cliente: 'Empresa C',
-            usuario: 'João Silva',
-            descricao: 'Erro ao gerar pedidos no ERP.',
-            status: 'Aguardando cliente'
-        },
-        {
-            id: 4,
-            titulo: 'Instalação de impressora',
-            categoria: 'Suporte',
-            prioridade: 'Baixa',
-            cliente: 'Empresa D',
-            usuario: 'João Silva',
-            descricao: 'Solicitação de instalação de impressora.',
-            status: 'Resolvido',
-            responsavel: 'João'
-        }
-    ];
+    // Lista de tickets já filtrada pelo TicketFilters (busca, categoria, prioridade, cliente, data)
+    const [ticketsFiltradosPorBusca, setTicketsFiltradosPorBusca] = useState<Ticket[] | null>(null);
+
+    // Controle do modal de abertura de novo chamado
+    const [modalNovoChamadoAberto, setModalNovoChamadoAberto] = useState(false);
+
+    // Nome do usuário autenticado. Por enquanto fixo aqui — quando o back-end
+    // (Bearer Token) estiver integrado, troque por dados reais vindos do hook
+    // de autenticação (ex: const { user } = useAuth(); usuarioLogado={user.nome}).
+    const usuarioLogado = 'João Silva';
+
+    // Lista de chamados. Vazia por padrão — alimente via API (ex: useEffect + fetch/service)
+    // assim que o back-end estiver disponível.
+    const [tickets, setTickets] = useState<Ticket[]>([]);
 
     // Configuração de cores para níveis de prioridade
     const prioridadeConfig: Record<string, string> = {
@@ -77,8 +47,11 @@ export default function SuporteTecnico() {
         'Fechado': '#FBBD49',
     };
 
-    // Filtra a lista de exibição com base no card ativo no Dashboard
-    const ticketsFiltrados = tickets.filter(ticket => {
+    // Base já filtrada pelo TicketFilters (ou a lista completa, se nenhum filtro de busca foi aplicado ainda)
+    const baseTickets = ticketsFiltradosPorBusca ?? tickets;
+
+    // Filtra a lista de exibição com base no card ativo no Dashboard, em cima do resultado do TicketFilters
+    const ticketsFiltrados = baseTickets.filter(ticket => {
         if (!filtroStatus) return true; // Se nenhum card estiver selecionado, exibe todos
         if (filtroStatus === 'Resolvido') {
             return ticket.status === 'Resolvido' || ticket.status === 'Fechado';
@@ -86,8 +59,42 @@ export default function SuporteTecnico() {
         return ticket.status === filtroStatus;
     });
 
+    // Cria o chamado localmente. Quando o back-end estiver pronto, troque o corpo desta
+    // função por uma chamada à API (enviando inclusive os anexos via FormData) e só
+    // atualize o estado local após a resposta de sucesso.
+    function handleCriarChamado(dados: NovoChamadoInput) {
+        const novoTicket: Ticket = {
+            id: Math.max(0, ...tickets.map((t) => t.id)) + 1,
+            titulo: dados.titulo,
+            categoria: dados.categoria,
+            prioridade: dados.prioridade,
+            cliente: dados.cliente,
+            usuario: dados.usuario,
+            descricao: dados.descricao,
+            status: 'Aberto',
+            dataCriacao: new Date().toISOString().slice(0, 10),
+            anexos: dados.anexos,
+        };
+
+        setTickets((atual) => [novoTicket, ...atual]);
+        setModalNovoChamadoAberto(false);
+    }
+
     return (
         <div className="p-6 space-y-6">
+            {/* Cabeçalho com ação principal de abertura de chamado */}
+            <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold text-slate-800">Suporte Técnico</h1>
+                <button
+                    onClick={() => setModalNovoChamadoAberto(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90"
+                    style={{ backgroundColor: 'rgb(233, 92, 19)' }}
+                >
+                    <Plus size={17} />
+                    Abrir chamado
+                </button>
+            </div>
+
             {/* Passando os estados e a lista de tickets para sincronismo dinâmico com os cards */}
             <DashboardCards 
                 tickets={tickets} 
@@ -95,7 +102,10 @@ export default function SuporteTecnico() {
                 onSelectStatus={setFiltroStatus} 
             />
             
-            <TicketFilters />
+            <TicketFilters
+                tickets={tickets}
+                onFilterChange={(_, filtrados) => setTicketsFiltradosPorBusca(filtrados)}
+            />
 
             {/* O container mantém a KEY para resetar a lista inteira do zero a cada clique,
                 mas a animação agora acontece individualmente em cada item abaixo. */}
@@ -155,9 +165,26 @@ export default function SuporteTecnico() {
                         </div>
                     );
                 })}
+
+                {ticketsFiltrados.length === 0 && tickets.length > 0 && (
+                    <div className="text-center py-12 text-slate-400 text-sm">
+                        Nenhum chamado encontrado com esses filtros.
+                    </div>
+                )}
+
+                {tickets.length === 0 && (
+                    <div className="text-center py-12 text-slate-400 text-sm">
+                        Nenhum chamado aberto ainda. Clique em "Abrir chamado" para criar o primeiro.
+                    </div>
+                )}
             </div>
 
-            <TicketModal />
+            <NovoChamadoModal
+                aberto={modalNovoChamadoAberto}
+                onClose={() => setModalNovoChamadoAberto(false)}
+                onSubmit={handleCriarChamado}
+                usuarioLogado={usuarioLogado}
+            />
         </div>
     );
 }
