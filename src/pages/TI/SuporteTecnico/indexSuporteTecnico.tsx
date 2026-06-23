@@ -78,7 +78,7 @@ export default function SuporteTecnico() {
                                2. 'transition-all duration-500 ease-in-out': Restaura a suavidade no hover
                                3. 'hover:border-orange-500': Restaura o efeito de contorno suave
                             */
-                            className="group bg-white border border-slate-200 rounded-xl p-5 pb-8 cursor-pointer transition-all duration-630 ease-in-out overflow-hidden max-h-[130px] hover:max-h-[300px] hover:shadow-lg hover:border-orange-500"
+                            className="group bg-white border border-slate-200 rounded-xl p-5 pb-8 cursor-pointer transition-all duration-700 ease-in-out overflow-hidden max-h-[130px] hover:max-h-[300px] hover:shadow-lg hover:border-orange-500"
                         >
                             <div className="flex justify-between items-start gap-4">
                                 <h3 className="font-bold text-slate-800 text-[17px]">{ticket.titulo}</h3>

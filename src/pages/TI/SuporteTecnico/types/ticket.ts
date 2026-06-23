@@ -18,12 +18,11 @@ export interface Ticket {
   titulo: string;
   categoria: string;
   prioridade: TicketPrioridade;
-  cliente: string; // Mantido por compatibilidade
-  usuario: string; // Mantido por compatibilidade
+  cliente: string; 
+  usuario: string;
   descricao: string;
   status: TicketStatus;
   responsavel?: string;
-  /** Data de criação do chamado, formato ISO (ex: '2026-06-22'). Opcional até o back-end enviar esse campo. */
   dataCriacao?: string;
   anexos?: TicketAnexo[];
 
@@ -63,3 +62,4 @@ export interface TicketChatMensagem extends TicketChatMensagemInput {
   autorTipo: 'cliente' | 'tecnico';
   enviadoEm: string; // ISO datetime
 }
+
