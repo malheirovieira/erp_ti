@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import DashboardCards from './components/TicketDashboard';
 import TicketFilters from './components/TicketFiltro';
 import TicketModal from './components/TicketChat';
@@ -25,7 +26,7 @@ export default function SuporteTecnico() {
         'Aberto': '#FAA72A', 'ABERTO': '#FAA72A',
         'Em andamento': '#FBBD49', 'EM_ANDAMENTO': '#FBBD49',
         'Aguardando cliente': '#DFF368',
-        'Resolvido': '#FAA72A', 'RESOLVIDO': '#FAA72A',
+        'Resolvido': '#FAA72A', 'RESOLVIDO': '#RESOLVIDO',
         'Fechado': '#FBBD49', 'FECHADO': '#FECHADO',
     };
 
@@ -65,20 +66,32 @@ export default function SuporteTecnico() {
             <DashboardCards tickets={tickets} selectedStatus={filtroStatus} onSelectStatus={setFiltroStatus} />
             <TicketFilters tickets={tickets} onFilterChange={(_, filtrados) => setTicketsFiltradosPorBusca(filtrados)} />
 
-            <div key={filtroStatus || 'todos'} className="space-y-6">
-                {ticketsFiltrados.map((ticket, index) => {
+            {/* Container Animado: Ajuste o staggerChildren para desacelerar a cascata */}
+            <motion.div 
+                key={filtroStatus || 'todos'} 
+                className="space-y-6"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                    visible: { 
+                        transition: { staggerChildren: 0.3 } // AUMENTADO: intervalo maior entre cada card
+                    }
+                }}
+            >
+                {ticketsFiltrados.map((ticket) => {
                     const bgPrioridade = prioridadeConfig[ticket.prioridade] || prioridadeConfig[ticket.prioridade?.toUpperCase()] || 'bg-slate-500';
                     const statusColor = statusConfig[ticket.status] || statusConfig[ticket.status?.toUpperCase()] || '#DFF368';
                     
                     return (
-                        <div
+                        <motion.div
                             key={ticket.id}
+                            variants={{
+                                hidden: { opacity: 0 },
+                                visible: { opacity: 1 }
+                            }}
+                            transition={{ duration: 0.8 }} // AUMENTADO: card leva mais tempo para aparecer
                             onClick={() => setSelectedTicket(ticket)}
-                            /* 1. 'p-5 pb-8': Padding constante (espaço interno sempre presente)
-                               2. 'transition-all duration-500 ease-in-out': Restaura a suavidade no hover
-                               3. 'hover:border-orange-500': Restaura o efeito de contorno suave
-                            */
-                            className="group bg-white border border-slate-200 rounded-xl p-5 pb-8 cursor-pointer transition-all duration-700 ease-in-out overflow-hidden max-h-[130px] hover:max-h-[300px] hover:shadow-lg hover:border-orange-500"
+                            className="group bg-white border border-slate-200 rounded-xl p-5 pb-8 cursor-pointer transition-all duration-300 ease-in-out overflow-hidden max-h-[130px] hover:max-h-[300px] hover:shadow-lg hover:border-orange-500"
                         >
                             <div className="flex justify-between items-start gap-4">
                                 <h3 className="font-bold text-slate-800 text-[17px]">{ticket.titulo}</h3>
@@ -109,11 +122,11 @@ export default function SuporteTecnico() {
                                 <p className="text-[13px] text-slate-600 mb-4">{ticket.descricao}</p>
                                 <p className="font-semibold text-slate-700 text-[12px]">Responsável: {ticket.responsavel || 'Não atribuído'}</p>
                             </div>
-                        </div>
+                        </motion.div>
                     );
                 })}
-            </div>
-            {/* Restante dos modais... */}
+            </motion.div>
+
             <TicketModal />
             <NovoChamadoModal aberto={modalNovoChamadoAberto} onClose={() => setModalNovoChamadoAberto(false)} onSubmit={() => {fetchTickets(); setModalNovoChamadoAberto(false);}} usuarioLogado={usuarioLogado} />
         </div>
