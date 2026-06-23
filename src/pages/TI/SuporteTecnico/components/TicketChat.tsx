@@ -4,13 +4,11 @@ import { useTicketStore } from '../store/useTicketStore';
 import type { TicketChatMensagem, TicketAnexo } from '../types/ticket';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
-// Importação do seu arquivo de configuração centralizado
 import { API_URL, getAuthHeaders } from '../../../../services/api'; 
 
 const LARANJA = 'rgb(233, 92, 19)';
 const TAMANHO_MAXIMO_MB = 10;
 
-// 🟢 AJUSTE: Mapeamento completo de prioridades idêntico à listagem anterior
 const prioridadeConfig: Record<string, string> = {
   'Crítica': 'bg-red-600',
   'CRÍTICA': 'bg-red-600',
@@ -24,7 +22,6 @@ const prioridadeConfig: Record<string, string> = {
   'BAIXA': 'bg-green-600',
 };
 
-// 🟢 AJUSTE: Mapeamento completo de status idêntico à listagem anterior
 const statusConfig: Record<string, string> = {
   'Aberto': '#FAA72A',
   'ABERTO': '#FAA72A',
@@ -41,29 +38,23 @@ export default function TicketModal() {
   const selectedTicket = useTicketStore((state) => state.selectedTicket);
   const setSelectedTicket = useTicketStore((state) => state.setSelectedTicket);
 
-  // Estados do histórico e envio
   const [mensagens, setMensagens] = useState<TicketChatMensagem[]>([]);
   const [carregandoMensagens, setCarregandoMensagens] = useState(false);
   const [enviandoMensagem, setEnviandoMensagem] = useState(false);
-
-  // Estado para armazenar o usuário atualmente logado (obtido da rota /usuarios/me)
   const [usuarioLogado, setUsuarioLogado] = useState<{ id: number; nome: string; email: string } | null>(null);
 
-  // Estados do Chat Input acoplados
   const [texto, setTexto] = useState('');
   const [anexos, setAnexos] = useState<TicketAnexo[]>([]);
   const [erroInput, setErroInput] = useState('');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
-  
-  // Ref para guardar a conexão do STOMP activa e não perder a referência nos renders
   const stompClientRef = useRef<Stomp.Client | null>(null);
 
   const disabled = enviandoMensagem || carregandoMensagens;
   const podeEnviar = (texto.trim() !== '' || anexos.length > 0) && !disabled;
 
-  // 0. CARREGA O PERFIL DO USUÁRIO LOGADO AO MONTAR O COMPONENTE
+  // Carrega os dados do perfil logado
   useEffect(() => {
     async function carregarPerfilUsuario() {
       try {
@@ -76,26 +67,25 @@ export default function TicketModal() {
           setUsuarioLogado(dados);
         }
       } catch (error) {
-        console.error("Erro ao obter dados do usuário logado do endpoint /usuarios/me:", error);
+        console.error("Erro ao obter dados do usuário logado:", error);
       }
     }
     carregarPerfilUsuario();
   }, []);
 
-  // 1. CARREGAR HISTÓRICO E CONECTAR WEBSOCKET
+  // Carrega o histórico de mensagens e conecta o WebSocket
   useEffect(() => {
     if (!selectedTicket) {
       setMensagens([]);
       return;
     }
 
-    // --- CARREGA O HISTÓRICO ANTIGO ---
     async function carregarHistoricoChat() {
       try {
         setCarregandoMensagens(true);
         const response = await fetch(`${API_URL}/chamados/${selectedTicket.id}/mensagens`, {
           method: 'GET',
-          headers: getAuthHeaders() // Utiliza os headers estruturados do api.ts
+          headers: getAuthHeaders()
         });
         
         if (response.ok) {
@@ -119,18 +109,15 @@ export default function TicketModal() {
 
     carregarHistoricoChat();
 
-    // --- CONECTA AO WEBSOCKET ---
     const token = localStorage.getItem('token');
     if (token) {
       const socket = new SockJS(`${API_URL}/ws-gestao`);
       const stomp = Stomp.over(socket);
-      
       stompClientRef.current = stomp;
 
       stomp.connect({ 'Authorization': `Bearer ${token}` }, () => {
         console.log(`Conectado à sala do Chamado ${selectedTicket.id}`);
 
-        // Inscreve no tópico para ouvir as mensagens chegando em tempo real
         stomp.subscribe(`/topic/chamado/${selectedTicket.id}`, (resposta) => {
           const msgRecebida = JSON.parse(resposta.body);
 
@@ -154,7 +141,6 @@ export default function TicketModal() {
       });
     }
 
-    // --- CLEANUP: DESCONECTA AO FECHAR O MODAL ---
     return () => {
       if (stompClientRef.current) {
         stompClientRef.current.disconnect(() => {
@@ -166,7 +152,6 @@ export default function TicketModal() {
 
   if (!selectedTicket) return null;
 
-  // 🟢 AJUSTE: Tratamento robusto para buscar as cores por chave direta ou em caixa alta
   const bgPrioridade = prioridadeConfig[selectedTicket.prioridade] || prioridadeConfig[selectedTicket.prioridade?.toUpperCase()] || 'bg-slate-500';
   const statusColor = statusConfig[selectedTicket.status] || statusConfig[selectedTicket.status?.toUpperCase()] || '#DFF368';
 
@@ -178,7 +163,6 @@ export default function TicketModal() {
     setErroInput('');
   }
 
-  // --- Funções Auxiliares de Arquivos e Texto ---
   function ajustarAltura(el: HTMLTextAreaElement) {
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
@@ -212,25 +196,25 @@ export default function TicketModal() {
     if (inputArquivoRef.current) inputArquivoRef.current.value = '';
   }
 
-  function formatarTamanho(bytes: number) {
+  const formatarTamanho = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
+  };
 
-  function formatarHora(iso: string) {
+  const formatarHora = (iso: string) => {
     if (!iso) return '';
     return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
+  };
 
-  // 3. ENVIO DA MENSAGEM (WebSocket ou HTTP)
+  // Gerencia o envio de mensagens textuais (WebSocket) e anexos binários (HTTP API Multipart)
   async function enviar() {
     if (!podeEnviar) return;
 
     try {
       setEnviandoMensagem(true);
 
-      // CASO 1: A mensagem possui arquivos anexos (Envia via HTTP POST multipart)
+      // CASO 1: A mensagem possui arquivos anexos (Garante envio HTTP POST no formato original)
       if (anexos.length > 0) {
         const formData = new FormData();
         formData.append('mensagem', texto.trim());
@@ -238,9 +222,10 @@ export default function TicketModal() {
           if (anexo.arquivo) formData.append('arquivos', anexo.arquivo);
         });
 
+        // Utiliza o getAuthHeaders(true) original que você já tinha mapeado
         const response = await fetch(`${API_URL}/chamados/${selectedTicket.id}/mensagens`, {
           method: 'POST',
-          headers: getAuthHeaders(true), // Passa "true" para omitir Content-Type e deixar o navegador definir o boundary do FormData
+          headers: getAuthHeaders(true),
           body: formData,
         });
 
@@ -259,7 +244,7 @@ export default function TicketModal() {
         }
       }
 
-      // Limpa os campos da interface imediatamente após o sucesso
+      // Limpa os campos da interface após o envio com sucesso
       setTexto('');
       setAnexos([]);
       setErroInput('');
@@ -327,7 +312,6 @@ export default function TicketModal() {
             </span>
           </div>
 
-          {/* 🟢 AJUSTE: Formatação de Empresa e Usuário idênticos à estética da listagem (sem uppercase e com realce na cor do texto) */}
           <div className="flex justify-between text-[12px] text-slate-400 font-medium mt-4">
             <span>
               Empresa: <span className="text-slate-700 font-semibold">{selectedTicket.cliente || selectedTicket.empresa}</span>
@@ -355,7 +339,7 @@ export default function TicketModal() {
           )}
         </div>
 
-        {/* Formulário de Input de Chat */}
+        {/* Input do Chat */}
         <div className="p-4 bg-white border-t border-slate-100 rounded-b-xl">
           <div className="border border-slate-200 rounded-2xl bg-white px-4 py-3">
             {anexos.length > 0 && (
@@ -428,7 +412,6 @@ export default function TicketModal() {
     </div>
   );
 
-  // Função interna para organizar a renderização mapeada das mensagens
   function messagesMap(listaDeMensagens: TicketChatMensagem[], usuario: any) {
     return listaDeMensagens.map((msg: any) => {
       const ehMinhaMensagem = usuario 
