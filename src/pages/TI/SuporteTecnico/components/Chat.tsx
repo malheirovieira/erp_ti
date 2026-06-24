@@ -107,7 +107,11 @@ export default function TicketModal() {
   }, []);
 
   useEffect(() => {
-    if (!selectedTicket) { setMensagens([]); return; }
+    if (!selectedTicket) { 
+      setMensagens([]); 
+      setParticipantesNoChamado([]); // Limpa a lista ao fechar
+      return; 
+    }
 
     async function carregarHistoricoChat() {
       try {
@@ -131,7 +135,39 @@ export default function TicketModal() {
       }
     }
 
+    // NOVA FUNÇÃO: Busca os participantes logo que abre o modal do chamado
+    // NOVA FUNÇÃO: Busca os participantes logo que abre o modal do chamado
+    async function carregarParticipantes() {
+      try {
+        const response = await fetch(`${API_URL}/chamados/${selectedTicket.id}/participantes`, { 
+          headers: getAuthHeaders() 
+        });
+        
+        if (response.ok) {
+          const participantes = await response.json();
+          
+          // Debug: Vamos ver no console (F12) o que o back-end está respondendo
+          console.log("Participantes recebidos do banco:", participantes);
+
+          setParticipantesNoChamado(
+            participantes.map((p: any) => {
+              // Mapeamento à prova de falhas: tenta pegar p.usuario.id, se não tiver, tenta direto p.id
+              const id = p.usuario?.id || p.id;
+              const nome = p.usuario?.nome || p.nome || '?';
+              const email = p.usuario?.email || p.email || '';
+              const papel = p.papel || 'OBSERVADOR';
+
+              return { id, nome, email, papel };
+            })
+          );
+        }
+      } catch (error) {
+        console.error('Erro ao buscar participantes na inicialização:', error);
+      }
+    }
+
     carregarHistoricoChat();
+    carregarParticipantes(); // Executa a busca de participantes
 
     const token = localStorage.getItem('token');
     if (token) {
@@ -439,19 +475,32 @@ export default function TicketModal() {
                 .avatar-stack-item {
                   width: 32px; height: 32px; border-radius: 50%;
                   border: 2px solid white;
-                  margin-left: -10px;
+                  margin-left: -8px;
                   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
                   position: relative;
-                  z-index: 2;
                 }
-                .avatar-stack-item:first-child { margin-left: 0; }
-                .avatar-stack-item:hover { transform: scale(1.12); z-index: 10; }
+                
+                /* Ajuste: Controle de z-index decrescente para que os novos fiquem atrás */
+                .avatar-stack > span:nth-of-type(1) { z-index: 20; }
+                .avatar-stack > span:nth-of-type(2) { z-index: 19; }
+                .avatar-stack > span:nth-of-type(3) { z-index: 18; }
+                .avatar-stack > span:nth-of-type(4) { z-index: 17; }
+                .avatar-stack > span:nth-of-type(5) { z-index: 16; }
+                .avatar-stack > span:nth-of-type(6) { z-index: 15; }
+                .avatar-stack > span:nth-of-type(7) { z-index: 14; }
+                .avatar-stack > span:nth-of-type(8) { z-index: 13; }
+                .avatar-stack > span:nth-of-type(9) { z-index: 12; }
+                .avatar-stack > span:nth-of-type(10) { z-index: 11; }
+
+                .avatar-stack-item:first-of-type { margin-left: 0; }
+                .avatar-stack-item:hover { transform: scale(1.12); z-index: 30 !important; }
+                
                 .avatar-add-btn {
                   width: 32px; height: 32px; border-radius: 50%;
                   border: 2px solid white;
-                  margin-left: -10px;
+                  margin-left: -6px; /* Acompanha o novo espaçamento */
                   position: relative;
-                  z-index: 1;
+                  z-index: 1; /* Mantém o botão de + sempre por último */
                   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
                   flex-shrink: 0;
                   cursor: pointer;
@@ -459,7 +508,7 @@ export default function TicketModal() {
                   align-items: center;
                   justify-content: center;
                 }
-                .avatar-add-btn:hover { transform: scale(1.12); }
+                .avatar-add-btn:hover { transform: scale(1.12); z-index: 30; }
               `}</style>
               <div className="avatar-stack">
                 {/* Avatar do criador — clicável, abre modal */}
