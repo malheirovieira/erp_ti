@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Users, FileBarChart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DashboardCards from './components/TicketDashboard';
 import TicketFilters from './components/TicketFiltro';
 import TicketModal from './components/TicketChat';
 import NovoChamadoModal from './components/TicketCriacao';
 import { useTicketStore } from './store/useTicketStore';
+import { useAuthStore } from './store/useAuthStore';
 import type { Ticket } from './types/ticket';
 
 export default function SuporteTecnico() {
     const { tickets, loading: carregando, fetchTickets, setSelectedTicket } = useTicketStore();
+    const { usuario, fetchUsuarioLogado, isAdmin } = useAuthStore();
     const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
     const [ticketsFiltradosPorBusca, setTicketsFiltradosPorBusca] = useState<Ticket[] | null>(null);
     const [modalNovoChamadoAberto, setModalNovoChamadoAberto] = useState(false);
-    const usuarioLogado = 'João Silva';
+    const usuarioLogado = usuario?.nome || 'João Silva';
 
     const prioridadeConfig: Record<string, string> = {
         'Crítica': 'bg-red-600', 'CRÍTICA': 'bg-red-600', 'CRITICA': 'bg-red-600',
@@ -32,7 +34,8 @@ export default function SuporteTecnico() {
 
     useEffect(() => {
         fetchTickets();
-    }, [fetchTickets]);
+        fetchUsuarioLogado();
+    }, [fetchTickets, fetchUsuarioLogado]);
 
     const baseTickets = ticketsFiltradosPorBusca ?? tickets;
 
@@ -54,13 +57,33 @@ export default function SuporteTecnico() {
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-xl font-bold text-slate-800">Suporte Técnico</h1>
-                <button
-                    onClick={() => setModalNovoChamadoAberto(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90"
-                    style={{ backgroundColor: 'rgb(233, 92, 19)' }}
-                >
-                    <Plus size={17} /> Abrir chamado
-                </button>
+                <div className="flex items-center gap-3">
+                    {isAdmin() && (
+                        <>
+                            <button
+                                onClick={() => {/* navegação para tela de Usuários */}}
+                                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-all duration-200 ease-out hover:opacity-90 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+                                style={{ backgroundColor: 'rgb(243, 152, 109)' }}
+                            >
+                                <Users size={17} /> Usuários
+                            </button>
+                            <button
+                                onClick={() => {/* navegação para tela de Relatórios */}}
+                                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-all duration-200 ease-out hover:opacity-90 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+                                style={{ backgroundColor: 'rgb(238, 122, 64)' }}
+                            >
+                                <FileBarChart size={17} /> Relatórios
+                            </button>
+                        </>
+                    )}
+                    <button
+                        onClick={() => setModalNovoChamadoAberto(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white rounded-lg transition-all duration-200 ease-out hover:opacity-90 hover:scale-[1.03] hover:shadow-md active:scale-[0.98]"
+                        style={{ backgroundColor: 'rgb(233, 92, 19)' }}
+                    >
+                        <Plus size={17} /> Abrir chamado
+                    </button>
+                </div>
             </div>
 
             <DashboardCards tickets={tickets} selectedStatus={filtroStatus} onSelectStatus={setFiltroStatus} />
