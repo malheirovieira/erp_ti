@@ -13,12 +13,22 @@ export interface TicketAnexo {
   url?: string;
 }
 
+/** Representa um usuário resumido vindo da API. */
+interface UsuarioResumo {
+  id: number;
+  nome: string;
+  email: string;
+  role?: string;
+  /** URL da foto de perfil — preenchida quando o usuário fizer upload futuramente. */
+  fotoPerfil?: string;
+}
+
 export interface Ticket {
   id: number;
   titulo: string;
   categoria: string;
   prioridade: TicketPrioridade;
-  cliente: string; 
+  cliente: string;
   usuario: string;
   descricao: string;
   status: TicketStatus;
@@ -26,14 +36,14 @@ export interface Ticket {
   dataCriacao?: string;
   anexos?: TicketAnexo[];
 
-  // ─── NOVOS CAMPOS VINDOS DA API DO BACK-END ──────────────────────────────
+  // ─── CAMPOS VINDOS DA API DO BACK-END ────────────────────────────────────
   empresa?: string;
-  usuarioAbriu?: {
-    id: number;
-    nome: string;
-    email: string;
-    role?: string;
-  };
+
+  /** Usuário que abriu o chamado. */
+  usuarioAbriu?: UsuarioResumo;
+
+  /** Técnico principal responsável pelo chamado (preenchido após "Assumir chamado"). */
+  tecnicoPrincipal?: UsuarioResumo;
   // ─────────────────────────────────────────────────────────────────────────
 }
 
@@ -58,8 +68,9 @@ export interface TicketChatMensagemInput {
 export interface TicketChatMensagem extends TicketChatMensagemInput {
   id: string;
   autor: string;
-  /** Indica se quem enviou foi o cliente ou o técnico — usado para alinhar a bolha do chat. */
-  autorTipo: 'cliente' | 'tecnico';
+  /** E-mail do autor — usado para identificar se a mensagem é do usuário logado e alinhar a bolha. */
+  autorEmail?: string;
+  /** @deprecated Use autorEmail para identificar o lado da bolha. Mantido para compatibilidade. */
+  autorTipo?: 'cliente' | 'tecnico';
   enviadoEm: string; // ISO datetime
 }
-
