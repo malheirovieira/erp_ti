@@ -123,6 +123,7 @@ export default function SuporteTecnico() {
                 }}
             >
                 {ticketsFiltrados.map((ticket) => {
+                    console.log("Conteúdo do ticket:", ticket);
                     const bgPrioridade = prioridadeConfig[ticket.prioridade] || prioridadeConfig[ticket.prioridade?.toUpperCase()] || 'bg-slate-500';
                     
                     // Agora o formatarStatus será encontrado porque você fez o import!
@@ -165,7 +166,10 @@ export default function SuporteTecnico() {
                                     {' | '}
                                     Usuário: <span className="text-slate-700 font-semibold">{ticket.usuario}</span>
                                 </span>
-                                <span>{ticket.dataCriacao ? new Date(ticket.dataCriacao).toLocaleDateString('pt-BR') : '-'}</span>
+                                
+                                <span className="text-slate-700 font-semibold">
+                                {ticket.dataAbertura ? new Date(ticket.dataAbertura).toLocaleDateString('pt-BR') : '-'}
+                            </span>
                             </div>
 
                             <div className="mt-4 pt-4 border-t border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity duration-800 ease-in-out">

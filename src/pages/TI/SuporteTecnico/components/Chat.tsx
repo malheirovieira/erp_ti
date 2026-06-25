@@ -32,21 +32,24 @@ function UserAvatar({ nome, size = 'sm', clickable = false, onClick, extraClass 
   onClick?: () => void;
   extraClass?: string;
 }) {
-  const iniciais = nome
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0].toUpperCase())
-    .join('');
-  const sizeClass = size === 'md' ? 'w-8 h-8 text-[10px]' : 'w-6 h-6 text-[10px]';
+  const partes = nome.split(' ').filter(Boolean);
+  let iniciais: string;
+  if (partes.length === 0) {
+    iniciais = '?';
+  } else if (partes.length === 1) {
+    iniciais = partes[0][0].toUpperCase();
+  } else {
+    iniciais = (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  }
+  const sizeClass = size === 'md' ? 'w-8 h-8 text-[13px]' : 'w-6 h-6 text-[10px]';
   return (
     <>
       <style>{`
         .avatar-clickable {
           cursor: pointer;
-          transition: transform 0.70s cubic-bezier(0.34, 1.56, 0.64, 1);
+          transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .avatar-clickable:hover { transform: scale(1.14); }
+        .avatar-clickable:hover { transform: scale(1.12); }
         .avatar-clickable:active { transform: scale(0.96); transition-duration: 0.1s; }
       `}</style>
       <span
@@ -80,6 +83,7 @@ export default function TicketModal() {
   const [usuariosDisponiveis, setUsuariosDisponiveis] = useState<{ id: number; nome: string; email: string; role: string }[]>([]);
   const [carregandoUsuarios, setCarregandoUsuarios] = useState(false);
   const [adicionandoId, setAdicionandoId] = useState<number | null>(null);
+  const [removendoId, setRemovendoId] = useState<number | null>(null);
   const [feedbackParticipante, setFeedbackParticipante] = useState<{ tipo: 'ok' | 'erro'; msg: string } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -107,11 +111,14 @@ export default function TicketModal() {
   }, []);
 
   useEffect(() => {
-    if (!selectedTicket) { 
-      setMensagens([]); 
-      setParticipantesNoChamado([]); // Limpa a lista ao fechar
-      return; 
+    if (!selectedTicket) {
+      setMensagens([]);
+      setParticipantesNoChamado([]);
+      return;
     }
+
+    // Reseta participantes ao trocar de chamado
+    setParticipantesNoChamado([]);
 
     async function carregarHistoricoChat() {
       try {
@@ -135,39 +142,28 @@ export default function TicketModal() {
       }
     }
 
-    // NOVA FUNÇÃO: Busca os participantes logo que abre o modal do chamado
-    // NOVA FUNÇÃO: Busca os participantes logo que abre o modal do chamado
-    async function carregarParticipantes() {
+    // Busca silenciosa de participantes para popular os avatares na stack
+    async function carregarParticipantesIniciais() {
       try {
-        const response = await fetch(`${API_URL}/chamados/${selectedTicket.id}/participantes`, { 
-          headers: getAuthHeaders() 
-        });
-        
-        if (response.ok) {
-          const participantes = await response.json();
-          
-          // Debug: Vamos ver no console (F12) o que o back-end está respondendo
-          console.log("Participantes recebidos do banco:", participantes);
-
+        const res = await fetch(`${API_URL}/chamados/${selectedTicket.id}/participantes`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const dados = await res.json();
           setParticipantesNoChamado(
-            participantes.map((p: any) => {
-              // Mapeamento à prova de falhas: tenta pegar p.usuario.id, se não tiver, tenta direto p.id
-              const id = p.usuario?.id || p.id;
-              const nome = p.usuario?.nome || p.nome || '?';
-              const email = p.usuario?.email || p.email || '';
-              const papel = p.papel || 'OBSERVADOR';
-
-              return { id, nome, email, papel };
-            })
+            dados.map((p: any) => ({
+              id: p.usuario?.id ?? p.id,
+              nome: p.usuario?.nome ?? p.nome ?? '?',
+              email: p.usuario?.email ?? p.email ?? '',
+              papel: p.papel ?? 'OBSERVADOR',
+            }))
           );
         }
-      } catch (error) {
-        console.error('Erro ao buscar participantes na inicialização:', error);
+      } catch {
+        // silencioso — avatares simplesmente não aparecem se falhar
       }
     }
 
     carregarHistoricoChat();
-    carregarParticipantes(); // Executa a busca de participantes
+    carregarParticipantesIniciais();
 
     const token = localStorage.getItem('token');
     if (token) {
@@ -222,6 +218,13 @@ export default function TicketModal() {
   const roleFormatada = usuarioLogado?.role?.trim().toUpperCase() || '';
   const ehTecnicoOuAdmin = roleFormatada === 'TECNICO' || roleFormatada === 'ADMIN';
   const semResponsavel = !selectedTicket.responsavel || selectedTicket.responsavel.trim() === '' || selectedTicket.responsavel === 'Não atribuído';
+
+  // Pode convidar: admin, técnico, ou o criador do chamado
+  const ehCriador = !!usuarioLogado && (
+    usuarioLogado.nome === (selectedTicket.usuario || selectedTicket.usuarioAbriu?.nome) ||
+    usuarioLogado.id === selectedTicket.usuarioAbriu?.id
+  );
+  const podeConvidar = ehTecnicoOuAdmin || ehCriador;
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 
@@ -338,6 +341,32 @@ export default function TicketModal() {
       setFeedbackParticipante({ tipo: 'erro', msg: 'Erro de conexão.' });
     } finally {
       setAdicionandoId(null);
+    }
+  }
+
+  async function removerParticipante(idUsuario: number, nomeUsuario: string) {
+    setRemovendoId(idUsuario);
+    setFeedbackParticipante(null);
+    try {
+      const response = await fetch(`${API_URL}/chamados/${selectedTicket.id}/participantes/${idUsuario}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const msg = await response.text();
+      if (response.ok) {
+        setFeedbackParticipante({ tipo: 'ok', msg: msg || `${nomeUsuario} removido do chamado.` });
+        const removido = participantesNoChamado.find((p) => p.id === idUsuario);
+        setParticipantesNoChamado((prev) => prev.filter((p) => p.id !== idUsuario));
+        if (removido) {
+          setUsuariosDisponiveis((prev) => [...prev, { id: removido.id, nome: removido.nome, email: removido.email, role: '' }]);
+        }
+      } else {
+        setFeedbackParticipante({ tipo: 'erro', msg: msg || 'Erro ao remover participante.' });
+      }
+    } catch {
+      setFeedbackParticipante({ tipo: 'erro', msg: 'Erro de conexão.' });
+    } finally {
+      setRemovendoId(null);
     }
   }
 
@@ -475,32 +504,19 @@ export default function TicketModal() {
                 .avatar-stack-item {
                   width: 32px; height: 32px; border-radius: 50%;
                   border: 2px solid white;
-                  margin-left: -8px;
+                  margin-left: -10px;
                   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
                   position: relative;
+                  z-index: 2;
                 }
-                
-                /* Ajuste: Controle de z-index decrescente para que os novos fiquem atrás */
-                .avatar-stack > span:nth-of-type(1) { z-index: 20; }
-                .avatar-stack > span:nth-of-type(2) { z-index: 19; }
-                .avatar-stack > span:nth-of-type(3) { z-index: 18; }
-                .avatar-stack > span:nth-of-type(4) { z-index: 17; }
-                .avatar-stack > span:nth-of-type(5) { z-index: 16; }
-                .avatar-stack > span:nth-of-type(6) { z-index: 15; }
-                .avatar-stack > span:nth-of-type(7) { z-index: 14; }
-                .avatar-stack > span:nth-of-type(8) { z-index: 13; }
-                .avatar-stack > span:nth-of-type(9) { z-index: 12; }
-                .avatar-stack > span:nth-of-type(10) { z-index: 11; }
-
-                .avatar-stack-item:first-of-type { margin-left: 0; }
-                .avatar-stack-item:hover { transform: scale(1.12); z-index: 30 !important; }
-                
+                .avatar-stack-item:first-child { margin-left: 0; }
+                .avatar-stack-item:hover { transform: scale(1.12); z-index: 10; }
                 .avatar-add-btn {
                   width: 32px; height: 32px; border-radius: 50%;
                   border: 2px solid white;
-                  margin-left: -6px; /* Acompanha o novo espaçamento */
+                  margin-left: -10px;
                   position: relative;
-                  z-index: 1; /* Mantém o botão de + sempre por último */
+                  z-index: 1;
                   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
                   flex-shrink: 0;
                   cursor: pointer;
@@ -508,16 +524,14 @@ export default function TicketModal() {
                   align-items: center;
                   justify-content: center;
                 }
-                .avatar-add-btn:hover { transform: scale(1.12); z-index: 30; }
+                .avatar-add-btn:hover { transform: scale(1.12); }
               `}</style>
               <div className="avatar-stack">
-                {/* Avatar do criador — clicável, abre modal */}
+                {/* Avatar do criador — não abre modal */}
                 {(selectedTicket.usuario || selectedTicket.usuarioAbriu?.nome) && (
                   <UserAvatar
                     nome={selectedTicket.usuario || selectedTicket.usuarioAbriu?.nome || '?'}
                     size="md"
-                    clickable
-                    onClick={abrirModalParticipante}
                     extraClass="avatar-stack-item"
                   />
                 )}
@@ -530,18 +544,20 @@ export default function TicketModal() {
                     extraClass="avatar-stack-item"
                   />
                 ))}
-                {/* Botão + cinza, z-index menor (fica atrás dos avatares) */}
-                <button
-                  onClick={abrirModalParticipante}
-                  title="Convidar participante"
-                  className="avatar-add-btn"
-                  style={{ backgroundColor: '#f1f5f9' }}
-                >
-                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" fill="none">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
+                {/* Botão + apenas para quem pode convidar */}
+                {podeConvidar && (
+                  <button
+                    onClick={abrirModalParticipante}
+                    title="Convidar participante"
+                    className="avatar-add-btn"
+                    style={{ backgroundColor: '#f1f5f9' }}
+                  >
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" fill="none">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -584,47 +600,59 @@ export default function TicketModal() {
                       </div>
                       {/* Participantes já adicionados */}
                       {participantesNoChamado.map((p) => (
-                        <div key={p.id} className="flex items-center gap-2.5 py-1.5">
+                        <div key={p.id} className="flex items-center gap-2.5 py-1.5 group/item">
                           <UserAvatar nome={p.nome} size="md" />
                           <div className="flex-1 min-w-0">
                             <p className="text-[12px] font-semibold text-slate-700 truncate">{p.nome}</p>
-                            <p className="text-[10px] text-slate-400 capitalize">{p.papel.toLowerCase().replace('_', ' ')}</p>
+                            <p className="text-[10px] text-slate-400">{p.papel === 'OBSERVADOR' ? 'Participante' : p.papel.toLowerCase().replace('_', ' ')}</p>
                           </div>
+                          {podeConvidar && (
+                            <button
+                              onClick={() => removerParticipante(p.id, p.nome)}
+                              disabled={removendoId === p.id}
+                              title={`Remover ${p.nome}`}
+                              className="shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity px-2 py-1 text-[10px] font-semibold text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md disabled:opacity-40"
+                            >
+                              {removendoId === p.id ? '...' : 'Remover'}
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
 
-                    {/* Divisor */}
-                    <div className="mx-4 my-2 border-t border-slate-100" />
-
-                    {/* Seção: adicionar */}
-                    <div className="px-4 pb-1">
-                      <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wide mb-1">Adicionar</p>
-                    </div>
-                    <div className="max-h-44 overflow-y-auto pb-2">
-                      {usuariosDisponiveis.length === 0 ? (
-                        <p className="text-center text-[12px] text-slate-400 py-4">Nenhum usuário disponível.</p>
-                      ) : (
-                        usuariosDisponiveis.map((u) => (
-                          <button
-                            key={u.id}
-                            onClick={() => adicionarParticipante(u.id)}
-                            disabled={adicionandoId === u.id}
-                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-orange-50 transition-colors text-left disabled:opacity-60"
-                          >
-                            <UserAvatar nome={u.nome} size="md" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[12px] font-semibold text-slate-700 truncate">{u.nome}</p>
-                              <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
-                            </div>
-                            {adicionandoId === u.id
-                              ? <span className="text-[10px] text-slate-400 shrink-0">Adicionando...</span>
-                              : <span className="text-[10px] font-bold shrink-0" style={{ color: LARANJA }}>+ Convidar</span>
-                            }
-                          </button>
-                        ))
-                      )}
-                    </div>
+                    {/* Divisor e seção Adicionar — apenas para quem pode convidar */}
+                    {podeConvidar && (
+                      <>
+                        <div className="mx-4 my-2 border-t border-slate-100" />
+                        <div className="px-4 pb-1">
+                          <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wide mb-1">Adicionar</p>
+                        </div>
+                        <div className="max-h-44 overflow-y-auto pb-2">
+                          {usuariosDisponiveis.length === 0 ? (
+                            <p className="text-center text-[12px] text-slate-400 py-4">Nenhum usuário disponível.</p>
+                          ) : (
+                            usuariosDisponiveis.map((u) => (
+                              <button
+                                key={u.id}
+                                onClick={() => adicionarParticipante(u.id)}
+                                disabled={adicionandoId === u.id}
+                                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-orange-50 transition-colors text-left disabled:opacity-60"
+                              >
+                                <UserAvatar nome={u.nome} size="md" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[12px] font-semibold text-slate-700 truncate">{u.nome}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
+                                </div>
+                                {adicionandoId === u.id
+                                  ? <span className="text-[10px] text-slate-400 shrink-0">Adicionando...</span>
+                                  : <span className="text-[10px] font-bold shrink-0" style={{ color: LARANJA }}>+ Convidar</span>
+                                }
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </div>

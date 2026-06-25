@@ -33,7 +33,7 @@ export interface Ticket {
   descricao: string;
   status: TicketStatus;
   responsavel?: string;
-  dataCriacao?: string;
+  dataAbertura?: string;
   anexos?: TicketAnexo[];
 
   // ─── CAMPOS VINDOS DA API DO BACK-END ────────────────────────────────────

@@ -53,24 +53,28 @@ export default function TicketCard({ ticket, onClick }: Props) {
       </p>
 
       <div className="flex items-center justify-between text-xs text-gray-400 mt-auto">
-        <div className="flex items-center gap-2">
-          <User size={14} />
-          <span>
-            Empresa: <strong>{clienteExibido}</strong>
-            {' | '}
-            Usuário: <strong>{usuarioExibido}</strong>
-          </span>
-        </div>
-
-        {/* Status com a cor aplicada dinamicamente */}
-        <div 
-          className="flex items-center gap-1 font-medium px-2 py-1 rounded-md text-white"
-          style={{ backgroundColor: statusConfig[statusFormatado] || '#A0A0A0' }}
-        >
-          <Clock size={14} />
-          {statusFormatado}
-        </div>
+      <div className="flex items-center gap-2">
+        <User size={14} />
+        <span>
+          Empresa: <strong>{clienteExibido}</strong>
+          {' | '}
+          Usuário: <strong>{usuarioExibido}</strong>
+        </span>
       </div>
+      
+      {/* ADICIONE ESTA LINHA PARA EXIBIR A DATA */}
+      <div>
+        {ticket.dataAbertura ? new Date(ticket.dataAbertura).toLocaleDateString('pt-BR') : '-'}
+      </div>
+
+      <div 
+        className="flex items-center gap-1 font-medium px-2 py-1 rounded-md text-white"
+        style={{ backgroundColor: statusConfig[statusFormatado] || '#A0A0A0' }}
+      >
+        <Clock size={14} />
+        {statusFormatado}
+      </div>
+    </div>
     </div>
   );
 }
