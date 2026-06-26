@@ -54,9 +54,10 @@ export function FeedPost({ post, onDelete, podeDeletar = false }: FeedPostProps)
       {/* Conteúdo do Post */}
       <div className="pl-1">
         <h3 className="font-bold text-xl text-gray-900 mb-3">{post.titulo}</h3>
-        <p className="text-gray-600 whitespace-pre-wrap text-base leading-relaxed">
-          {post.conteudo}
-        </p>
+      <div 
+          className="text-gray-600 text-base leading-relaxed prose prose-orange max-w-none"
+          dangerouslySetInnerHTML={{ __html: post.conteudo }}
+        />
         
         {post.urlImagem && (
           <div className="mt-5 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex justify-center">

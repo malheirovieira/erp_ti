@@ -40,26 +40,16 @@ function UserAvatar({ nome, size = 'sm', clickable = false, onClick, extraClass 
   } else {
     iniciais = (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
   }
-  const sizeClass = size === 'md' ? 'w-8 h-8 text-[13px]' : 'w-6 h-6 text-[10px]';
+  const sizeClass = size === 'md' ? 'w-7 h-7 text-[11px]' : 'w-6 h-6 text-[10px]';
   return (
-    <>
-      <style>{`
-        .avatar-clickable {
-          cursor: pointer;
-          transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .avatar-clickable:hover { transform: scale(1.12); }
-        .avatar-clickable:active { transform: scale(0.96); transition-duration: 0.1s; }
-      `}</style>
-      <span
-        onClick={onClick}
-        className={`inline-flex items-center justify-center rounded-full font-bold text-white shrink-0 ${sizeClass} ${clickable ? 'avatar-clickable' : ''} ${extraClass}`}
-        style={{ backgroundColor: LARANJA }}
-        title={nome}
-      >
-        {iniciais}
-      </span>
-    </>
+    <span
+      onClick={onClick}
+      className={`inline-flex items-center justify-center rounded-full font-bold text-white shrink-0 ${sizeClass} ${clickable ? 'cursor-pointer' : ''} ${extraClass}`}
+      style={{ backgroundColor: LARANJA }}
+      title={nome}
+    >
+      {iniciais}
+    </span>
   );
 }
 
@@ -67,7 +57,7 @@ export default function TicketModal() {
   const selectedTicket = useTicketStore((state) => state.selectedTicket);
   const setSelectedTicket = useTicketStore((state) => state.setSelectedTicket);
   const updateTicket = useTicketStore((state: any) => state.updateTicket);
-  const fetchTickets = useTicketStore((state: any) => state.fetchTickets); // ← NOVO
+  const fetchTickets = useTicketStore((state: any) => state.fetchTickets);
 
   const [mensagens, setMensagens] = useState<TicketChatMensagem[]>([]);
   const [carregandoMensagens, setCarregandoMensagens] = useState(false);
@@ -212,12 +202,13 @@ export default function TicketModal() {
   const roleFormatada = usuarioLogado?.role?.trim().toUpperCase() || '';
   const ehTecnicoOuAdmin = roleFormatada === 'TECNICO' || roleFormatada === 'ADMIN';
   const semResponsavel = !selectedTicket.responsavel || selectedTicket.responsavel.trim() === '' || selectedTicket.responsavel === 'Não atribuído';
-
-  const ehCriador = !!usuarioLogado && (
-    usuarioLogado.nome === (selectedTicket.usuario || selectedTicket.usuarioAbriu?.nome) ||
-    usuarioLogado.id === selectedTicket.usuarioAbriu?.id
-  );
-  const podeConvidar = ehTecnicoOuAdmin || ehCriador;
+  const ehCriador = !!usuarioLogado && usuarioLogado.id === selectedTicket.usuarioAbriu?.id;
+  const ehApenasObservador =
+    !!usuarioLogado &&
+    !ehTecnicoOuAdmin &&
+    !ehCriador &&
+    participantesNoChamado.some((p) => p.id === usuarioLogado.id);
+  const podeConvidar = (ehTecnicoOuAdmin || ehCriador) && !ehApenasObservador;
 
   function fechar() {
     setSelectedTicket(null);
@@ -272,31 +263,34 @@ export default function TicketModal() {
     setCarregandoUsuarios(true);
     try {
       const [resUsuarios, resParticipantes] = await Promise.all([
-        fetch(`${API_URL}/usuarios`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/usuarios/participantes`, { headers: getAuthHeaders() }),
         fetch(`${API_URL}/chamados/${selectedTicket.id}/participantes`, { headers: getAuthHeaders() }),
       ]);
 
-      const todosUsuarios = resUsuarios.ok ? await resUsuarios.json() : [];
-      const participantes = resParticipantes.ok ? await resParticipantes.json() : [];
+      const todosUsuarios: any[] = resUsuarios.ok ? await resUsuarios.json() : [];
+      const participantes: any[] = resParticipantes.ok ? await resParticipantes.json() : [];
 
       const idsNoCall = new Set<number>();
       if (selectedTicket.usuarioAbriu?.id) idsNoCall.add(selectedTicket.usuarioAbriu.id);
       if ((selectedTicket as any).tecnicoPrincipal?.id) idsNoCall.add((selectedTicket as any).tecnicoPrincipal.id);
-      participantes.forEach((p: any) => p.usuario?.id && idsNoCall.add(p.usuario.id));
+      participantes.forEach((p: any) => {
+        const id = p.usuario?.id ?? p.id;
+        if (id) idsNoCall.add(id);
+      });
 
       setParticipantesNoChamado(
         participantes.map((p: any) => ({
-          id: p.usuario?.id,
-          nome: p.usuario?.nome || '?',
-          email: p.usuario?.email || '',
-          papel: p.papel || 'OBSERVADOR',
+          id: p.usuario?.id ?? p.id,
+          nome: p.usuario?.nome ?? p.nome ?? '?',
+          email: p.usuario?.email ?? p.email ?? '',
+          papel: p.papel ?? 'OBSERVADOR',
         }))
       );
 
       setUsuariosDisponiveis(
         todosUsuarios
           .filter((u: any) => {
-            if (u.bloqueado || u.ativo === false) return false;
+            if (u.ativo === false) return false;
             return !idsNoCall.has(u.id);
           })
           .map((u: any) => ({
@@ -331,7 +325,7 @@ export default function TicketModal() {
           setParticipantesNoChamado((prev) => [...prev, { ...novoParticipante, papel: 'OBSERVADOR' }]);
           setUsuariosDisponiveis((prev) => prev.filter((u) => u.id !== idUsuario));
         }
-        fetchTickets(); // ← atualiza a lista em tempo real
+        fetchTickets();
       } else {
         setFeedbackParticipante({ tipo: 'erro', msg: msg || 'Erro ao adicionar participante.' });
       }
@@ -358,7 +352,7 @@ export default function TicketModal() {
         if (removido) {
           setUsuariosDisponiveis((prev) => [...prev, { id: removido.id, nome: removido.nome, email: removido.email, role: '' }]);
         }
-        fetchTickets(); // ← atualiza a lista em tempo real
+        fetchTickets();
       } else {
         setFeedbackParticipante({ tipo: 'erro', msg: msg || 'Erro ao remover participante.' });
       }
@@ -444,6 +438,7 @@ export default function TicketModal() {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={fechar}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-2xl h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
 
+        {/* Cabeçalho */}
         <div className="px-6 py-4 border-b border-slate-100 shrink-0">
           <div className="flex items-start justify-between gap-4">
             <h2 className="font-bold text-slate-800 text-lg">{selectedTicket.titulo}</h2>
@@ -451,25 +446,21 @@ export default function TicketModal() {
               {ehTecnicoOuAdmin && (
                 <>
                   <style>{`.btn-acao { transition: all 0.2s ease-in-out; }`}</style>
-
                   {(statusFormatado === 'ABERTO' || ((statusFormatado === 'EM_ANDAMENTO' || statusFormatado === 'EM ANDAMENTO') && semResponsavel)) && (
                     <button onClick={handleAssumirChamado} className="btn-acao flex items-center justify-center px-4 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold rounded-lg hover:border-[rgb(233,92,19)] hover:text-[rgb(233,92,19)] hover:bg-orange-50 active:scale-95 cursor-pointer mr-1">
                       Assumir chamado
                     </button>
                   )}
-
                   {statusFormatado !== 'FECHADO' && statusFormatado !== 'FINALIZADO' && (statusFormatado === 'EM_ANDAMENTO' || statusFormatado === 'EM ANDAMENTO') && (!semResponsavel && (selectedTicket.responsavel === usuarioLogado?.nome || roleFormatada === 'ADMIN')) && (
                     <button onClick={() => handleFinalizarChamado('FECHADO')} className="btn-acao flex items-center justify-center px-4 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold rounded-lg hover:border-[rgb(233,92,19)] hover:text-[rgb(233,92,19)] hover:bg-orange-50 active:scale-95 cursor-pointer">
                       Finalizar chamado
                     </button>
                   )}
-
                   {isFinalizado && (
                     <button onClick={() => handleFinalizarChamado('EM_ANDAMENTO')} className="btn-acao flex items-center justify-center px-4 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-semibold rounded-lg hover:border-[rgb(233,92,19)] hover:text-[rgb(233,92,19)] hover:bg-orange-50 active:scale-95 cursor-pointer">
                       Reabrir chamado
                     </button>
                   )}
-
                   <div className="w-px h-5 bg-slate-200 mx-1" />
                 </>
               )}
@@ -478,6 +469,7 @@ export default function TicketModal() {
             </div>
           </div>
 
+          {/* Badges */}
           <div className="flex gap-2 mt-3 items-center">
             <span className="text-[11px] font-bold uppercase px-2.5 py-1 rounded-md text-white" style={{ backgroundColor: LARANJA }}>
               {selectedTicket.cliente || selectedTicket.empresa}
@@ -490,36 +482,46 @@ export default function TicketModal() {
             </span>
           </div>
 
+          {/* Avatares + responsável */}
           <div className="flex justify-between items-center mt-4 relative">
-            <div className="flex items-center">
+
+            {/* Stack de avatares */}
+            <div className="flex items-center" style={{ gap: 0 }}>
               <style>{`
-                .avatar-stack { display: flex; align-items: center; }
+                .avatar-stack { display: flex; align-items: center; flex-direction: row; }
                 .avatar-stack-item {
-                  width: 32px; height: 32px; border-radius: 50%;
+                  width: 28px; height: 28px; border-radius: 50%;
                   border: 2px solid white;
-                  margin-left: -10px;
-                  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+                  margin-left: -6px;
+                  transition: transform 0.2s ease;
                   position: relative;
-                  z-index: 2;
                 }
-                .avatar-stack-item:first-child { margin-left: 0; }
-                .avatar-stack-item:hover { transform: scale(1.12); z-index: 10; }
+                .avatar-stack-item:first-child { margin-left: 0; z-index: 10; }
+                .avatar-stack-item:nth-child(2) { z-index: 9; }
+                .avatar-stack-item:nth-child(3) { z-index: 8; }
+                .avatar-stack-item:nth-child(4) { z-index: 7; }
+                .avatar-stack-item:nth-child(5) { z-index: 6; }
+                .avatar-stack-item:nth-child(6) { z-index: 5; }
+                .avatar-stack-item:hover { transform: scale(1.12); z-index: 20 !important; }
                 .avatar-add-btn {
-                  width: 32px; height: 32px; border-radius: 50%;
+                  width: 28px; height: 28px; border-radius: 50%;
                   border: 2px solid white;
-                  margin-left: -10px;
+                  margin-left: -6px;
                   position: relative;
                   z-index: 1;
-                  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+                  transition: transform 0.2s ease;
                   flex-shrink: 0;
                   cursor: pointer;
                   display: inline-flex;
                   align-items: center;
                   justify-content: center;
+                  background-color: #f1f5f9;
                 }
-                .avatar-add-btn:hover { transform: scale(1.12); }
+                .avatar-add-btn:hover { transform: scale(1.12); z-index: 20 !important; }
               `}</style>
+
               <div className="avatar-stack">
+                {/* 1. Criador — esquerda, z-index mais alto */}
                 {(selectedTicket.usuario || selectedTicket.usuarioAbriu?.nome) && (
                   <UserAvatar
                     nome={selectedTicket.usuario || selectedTicket.usuarioAbriu?.nome || '?'}
@@ -527,6 +529,8 @@ export default function TicketModal() {
                     extraClass="avatar-stack-item"
                   />
                 )}
+
+                {/* 2. Participantes — meio */}
                 {participantesNoChamado.map((p) => (
                   <UserAvatar
                     key={p.id}
@@ -535,14 +539,15 @@ export default function TicketModal() {
                     extraClass="avatar-stack-item"
                   />
                 ))}
+
+                {/* 3. Botão + — direita */}
                 {podeConvidar && (
                   <button
                     onClick={abrirModalParticipante}
                     title="Convidar participante"
                     className="avatar-add-btn"
-                    style={{ backgroundColor: '#f1f5f9' }}
                   >
-                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" fill="none">
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" fill="none">
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
@@ -555,6 +560,7 @@ export default function TicketModal() {
               Responsável: <span className="text-slate-700">{selectedTicket.responsavel || 'Não atribuído'}</span>
             </span>
 
+            {/* Mini modal de participantes */}
             {modalParticipanteAberto && (
               <div
                 ref={modalParticipanteRef}
@@ -578,6 +584,8 @@ export default function TicketModal() {
                   <>
                     <div className="px-4 pt-3 pb-1">
                       <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wide mb-2">No chamado</p>
+
+                      {/* Criador */}
                       <div className="flex items-center gap-2.5 py-1.5">
                         <UserAvatar nome={selectedTicket.usuario || selectedTicket.usuarioAbriu?.nome || '?'} size="md" />
                         <div className="flex-1 min-w-0">
@@ -585,6 +593,8 @@ export default function TicketModal() {
                           <p className="text-[10px] text-slate-400">Criador</p>
                         </div>
                       </div>
+
+                      {/* Participantes já adicionados */}
                       {participantesNoChamado.map((p) => (
                         <div key={p.id} className="flex items-center gap-2.5 py-1.5 group/item">
                           <UserAvatar nome={p.nome} size="md" />
@@ -606,6 +616,7 @@ export default function TicketModal() {
                       ))}
                     </div>
 
+                    {/* Seção adicionar — só para quem pode convidar */}
                     {podeConvidar && (() => {
                       const setoresUnicos = Array.from(
                         new Set(usuariosDisponiveis.map((u) => u.setor).filter(Boolean))
@@ -636,7 +647,7 @@ export default function TicketModal() {
                                 <select
                                   value={filtroSetor}
                                   onChange={(e) => setFiltroSetor(e.target.value)}
-                                  className="text-[11px] px-2 py-1.5 border border-slate-200 rounded-lg bg-slate-50 outline-none focus:border-orange-300 transition-colors max-w-[110px]"
+                                  className="text-[11px] px-2 py-1.5 border border-slate-200 rounded-lg bg-slate-50 outline-none focus:border-orange-300 transition-colors max-w-28"
                                 >
                                   <option value="">Setor</option>
                                   {setoresUnicos.map((s) => (
@@ -677,11 +688,12 @@ export default function TicketModal() {
                 )}
               </div>
             )}
-          </div>
+          </div>{/* fim flex justify-between */}
 
           <p className="text-sm text-slate-600 mt-3">{selectedTicket.descricao}</p>
-        </div>
+        </div>{/* fim cabeçalho */}
 
+        {/* Área de mensagens */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-slate-50">
           {carregandoMensagens
             ? <div className="text-center text-sm text-slate-400 py-8">Carregando...</div>
@@ -708,6 +720,7 @@ export default function TicketModal() {
           }
         </div>
 
+        {/* Input de envio */}
         <div className="p-4 bg-white border-t border-slate-100 rounded-b-xl relative group">
           {isFinalizado && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/10 cursor-not-allowed" title="Reabra o chamado para enviar mensagens." />

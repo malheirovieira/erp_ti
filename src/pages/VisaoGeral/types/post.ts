@@ -4,6 +4,7 @@ export interface AvisoResponse {
   conteudo: string;
   urlImagem: string | null;
   empresaAlvo: string;
+  idCriador: number | null; 
   nomeCriador: string;
   cargoCriador: string;
   setorCriador: string;

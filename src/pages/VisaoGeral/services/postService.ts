@@ -30,6 +30,26 @@ export const postService = {
     return response.json();
   },
 
+// Adicione junto com as outras funções (listarFeed, criarAviso...)
+  uploadImagemAviso: async (arquivo: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+
+    const response = await fetch(`${API_URL}/avisos/upload`, {
+      method: 'POST',
+      headers: getAuthHeaders(true), // true para não enviar o Content-Type e o navegador montar o boundary
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Erro ao enviar a imagem.');
+    }
+
+    const data = await response.json();
+    return data.url;
+  },
+
+  
   excluirAviso: async (idAviso: number): Promise<void> => {
     const response = await fetch(`${API_URL}/avisos/${idAviso}`, {
       method: 'DELETE',
