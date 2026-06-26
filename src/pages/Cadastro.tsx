@@ -92,8 +92,8 @@ export const Cadastro: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-md p-8 max-w-sm w-full text-center flex flex-col items-center gap-4 shadow-2xl animate-in fade-in zoom-in duration-300">
             <CheckCircle className="text-[#E95C13]" size={48} />
-            <h2 className="text-lg font-bold text-gray-800">Solicitação Enviada!</h2>
-            <p className="text-sm text-gray-600">Seu cadastro foi enviado para análise de um administrador. Entraremos em contato em breve.</p>
+            <h2 className="text-lg font-bold text-gray-800">Cadastrado com Sucesso!</h2>
+            <p className="text-sm text-gray-600">Retorne para a tela de login para entrar no sistema.</p>
             <button onClick={() => navigate('/login-admin')} className="w-full bg-[#E95C13] text-white font-bold text-sm py-3 rounded-sm hover:bg-[#d4500f] transition-all">
               OK, Entendido
             </button>

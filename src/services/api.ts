@@ -1,6 +1,6 @@
 // src/config/api.ts
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://192.168.2.155:7000';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:7000';
 
 export function getAuthHeaders(isFormData: boolean = false): HeadersInit {
   const token = localStorage.getItem('token');
