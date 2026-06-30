@@ -18,8 +18,7 @@ const menusBase: Record<string, Array<{ label: string; path: string; icon: strin
   RH: [],
   TI: [
     { label: 'Visão Geral', path: 'visao-geral', icon: 'LayoutDashboard' },
-    { label: 'Automação SQL', path: 'automacao-sql', icon: 'Database' },
-    { label: 'Backups & Servidores', path: 'backups', icon: 'DatabaseBackup' }
+    { label: 'Bate-Papo', path: 'batepapo', icon: 'MessageSquare' }
   ],
   AUTH: [
     { label: 'Login', path: '/login', icon: 'LogIn' }
