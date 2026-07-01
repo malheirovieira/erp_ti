@@ -1,9 +1,7 @@
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-// Importamos a URL centralizada do seu arquivo api.ts
 import { API_URL_CHAT } from '../services/api'; 
 
-// Constrói a URL do WebSocket usando a constante unificada
 const SOCKET_URL = `${API_URL_CHAT}/ws-gestao`; 
 
 class BatePapoService {
@@ -26,8 +24,16 @@ class BatePapoService {
     this.client.activate();
   }
 
+  // Se inscreve no canal para receber mensagens em tempo real
   subscribe(canalId: number, callback: (msg: any) => void) {
     return this.client.subscribe(`/topic/canal/${canalId}`, (message) => {
+      callback(JSON.parse(message.body));
+    });
+  }
+
+  // NOVO: Se inscreve em um tópico global do usuário para saber quando ele é adicionado a novos grupos
+  subscribeNotificacoesUsuario(usuarioId: number, callback: (evento: any) => void) {
+    return this.client.subscribe(`/queue/usuario/${usuarioId}/notificacoes`, (message) => {
       callback(JSON.parse(message.body));
     });
   }

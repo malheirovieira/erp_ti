@@ -9,11 +9,12 @@ interface Props {
   mostrarCabecalho: boolean;
 }
 
+// CORRIGIDO: Removido o 'message' que não existia na interface Props
 export const MensagemItem: React.FC<Props> = ({ mensagem, ehMinha, mostrarCabecalho }) => {
   const nome = ehMinha ? 'Você' : mensagem.remetente?.nome ?? 'Desconhecido';
 
   return (
-    <div className="flex gap-3 px-2 py-1 -mx-2 rounded-lg hover:bg-[#f1f3f4]">
+    <div className="flex gap-3 px-2 py-1 -mx-2 rounded-lg transition-colors">
       {mostrarCabecalho ? (
         <Avatar nome={nome} tipo="pessoa" tamanho={32} />
       ) : (

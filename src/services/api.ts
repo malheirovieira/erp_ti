@@ -1,8 +1,8 @@
-// src/config/api.ts
+// src/services/api.ts
 
 // Configuração das URLs de cada serviço
 export const API_URL_SUPORTE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:7000';
-export const API_URL_CHAT = 'http://localhost:8080'; // URL do backend do chat
+export const API_URL_CHAT = 'http://127.0.0.1:7000';
 
 /**
  * Função unificada para gerar headers de autenticação.
@@ -60,8 +60,33 @@ export async function uploadAnexoChamado(chamadoId: number, arquivo: File) {
 // --- Funções do Chat ---
 
 export async function fetchUsuariosChat() {
-  // Chamada para a rota /usuarios/get que você definiu
-  return await apiRequest(`${API_URL_CHAT}/usuarios/get`, {
+  // AJUSTADO: Mudamos de '/usuarios/get' para '/usuarios/participantes' que é a rota real do seu Java
+  return await apiRequest(`${API_URL_CHAT}/usuarios/participantes`, {
+    method: 'GET'
+  });
+}
+
+// 1. Busca a lista de canais/conversas passando o ID do usuário logado por parâmetro
+export async function fetchCanaisUsuario(usuarioId: number | string) {
+  // AJUSTADO: Agora envia o ?usuarioId=X exigido pelo seu endpoint do Java
+  return await apiRequest(`${API_URL_CHAT}/api/canais?usuarioId=${usuarioId}`, {
+    method: 'GET'
+  });
+}
+
+
+// 2. Cria um novo grupo ou Espaço Geral (dados enviados como objeto simples para evitar quebras)
+export async function criarNovoCanal(dados: { nome: string; tipo: string; usuarioIds: number[] }) {
+  // AJUSTADO: Adicionado prefixo /api para mapear corretamente o CanalController do Java
+  return await apiRequest(`${API_URL_CHAT}/api/canais/criar`, {
+    method: 'POST',
+    body: JSON.stringify(dados)
+  });
+}
+
+// 3. Busca o histórico de mensagens antigas de um canal específico (Ajustado para o seu endpoint real)
+export async function fetchHistoricoMensagens(canalId: number | string) {
+  return await apiRequest(`${API_URL_CHAT}/api/batepapo/historico/${canalId}`, {
     method: 'GET'
   });
 }

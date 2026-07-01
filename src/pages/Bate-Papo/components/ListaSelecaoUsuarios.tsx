@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Avatar } from './Avatar';
-import { buscarTodosUsuarios } from '../services/batePapoApi';
 import type { PessoaSelecionavel } from '../mocks/pessoasMock';
+import { fetchUsuariosChat } from '../../../services/api';
 
 interface Props {
   onSelecionar: (pessoas: PessoaSelecionavel[]) => void;
@@ -14,7 +14,13 @@ export const ListaSelecaoUsuarios: React.FC<Props> = ({ onSelecionar, onFechar }
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    buscarTodosUsuarios().then(setUsuarios);
+    fetchUsuariosChat()
+      .then((dados) => {
+        setUsuarios(dados || []);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar usuários do chat:", err);
+      });
   }, []);
 
   useEffect(() => {
@@ -41,25 +47,35 @@ export const ListaSelecaoUsuarios: React.FC<Props> = ({ onSelecionar, onFechar }
 
       <div 
         ref={dropdownRef}
-        // Adicionada a classe border-2 e border-[#E95C13] para dar o destaque laranja solicitado
-        className="w-full h-full bg-white border-2 border-[#E95C13]/85 shadow-lg rounded-xl overflow-hidden flex flex-col transition-all duration-300"
+        className="w-full h-full bg-white border-2 border-[#E95C13] shadow-lg rounded-xl overflow-hidden flex flex-col transition-all duration-300"
       >
-        <div className="p-2 border-b border-orange-100 bg-orange-50/50 shrink-0">
-          <input
-            autoFocus
-            className="
-              w-full px-3 py-2 text-sm outline-none 
-              bg-gray-50/50 
-              border border-orange-200 rounded-lg 
-              focus:bg-white 
-              focus:border-[#e95a139e] 
-              focus:ring-2 focus:ring-[#E95C13]/20 
-              transition-all duration-300
-            "
-            placeholder="Buscar usuário..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
+        {/* Container do campo de busca reduzido com a lupa */}
+        <div className="p-2 bg-white shrink-0">
+          <div className="flex items-center gap-1.5 bg-gray-50 rounded-full px-3 py-1.5 border border-gray-200 transition-all duration-300 focus-within:bg-white focus-within:border-[#E95C13]">
+            {/* Lupa reduzida para 15px */}
+            <svg 
+              width="15" 
+              height="15" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="#5f6368" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              className="shrink-0"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            {/* Input e texto reduzidos para text-[13px] */}
+            <input
+              autoFocus
+              className="w-full bg-transparent outline-none text-[13px] text-gray-800"
+              placeholder="Buscar usuário..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto scrollbar-hide">

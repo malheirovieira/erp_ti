@@ -7,6 +7,7 @@ import { MensagensLista } from './components/MensagensLista';
 import { CaixaTexto } from './components/CaixaTexto';
 import type { Conversa } from './mocks/conversasMock';
 import type { PessoaSelecionavel } from './mocks/pessoasMock';
+import { criarNovoCanal, fetchCanaisUsuario } from '../../services/api'; 
 
 export const BatePapoPagina: React.FC = () => {
   const { mensagens, carregando, conectarCanal, enviarMensagem } = useBatePapo();
@@ -15,13 +16,63 @@ export const BatePapoPagina: React.FC = () => {
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [conversaAtiva, setConversaAtiva] = useState<Conversa | null>(null);
 
+  // AJUSTADO: Carrega o histórico passando o ID do usuário logado na URL sempre que o componente monta ou muda o ID
+  useEffect(() => {
+    if (!usuarioAtual?.id) return;
+
+    fetchCanaisUsuario(usuarioAtual.id)
+      .then((canais: any[]) => {
+        if (!canais) return;
+        const listaMapeada: Conversa[] = canais.map((canal) => ({
+          id: canal.id,
+          nome: canal.nome,
+          tipo: canal.tipo.toLowerCase() === 'privado' ? 'individual' : 'grupo',
+          preview: 'Clique para abrir',
+          hora: 'Ativo',
+          naoLidas: 0
+        }));
+        setConversas(listaMapeada);
+      })
+      .catch((err) => console.error('Erro ao buscar histórico de conversas:', err));
+  }, [usuarioAtual?.id]);
+
   useEffect(() => {
     if (conversaAtiva) conectarCanal(conversaAtiva.id);
   }, [conversaAtiva?.id, conectarCanal]);
 
-  const handleIniciarNovoChat = (pessoas: PessoaSelecionavel[]) => {
-    console.log('Iniciando chat com:', pessoas);
-    // Aqui você chama sua API para criar a conversa
+  const handleIniciarNovoChat = async (pessoas: PessoaSelecionavel[]) => {
+    if (!pessoas || pessoas.length === 0) return;
+    
+    const usuarioSelecionado = pessoas[0];
+    console.log('Iniciando chat via API com:', usuarioSelecionado);
+
+    try {
+      const canalCriado = await criarNovoCanal({
+        nome: usuarioSelecionado.nome,
+        tipo: 'PRIVADO',
+        usuarioIds: [usuarioSelecionado.id]
+      });
+
+      const novaConversa: Conversa = {
+        id: canalCriado.id, 
+        nome: usuarioSelecionado.nome,
+        tipo: 'individual', 
+        preview: 'Conversa iniciada', 
+        hora: 'Agora', 
+        naoLidas: 0
+      };
+
+      setConversas((anteriores) => {
+        const jaExiste = anteriores.some((c) => c.id === novaConversa.id);
+        if (jaExiste) return anteriores;
+        return [novaConversa, ...anteriores];
+      });
+
+      setConversaAtiva(novaConversa);
+
+    } catch (err) {
+      console.error('Erro ao iniciar novo chat no back-end:', err);
+    }
   };
 
   return (
