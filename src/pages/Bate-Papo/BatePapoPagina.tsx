@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useBatePapo } from './context/BatePapoContext';
-import { useUsuarioAtual } from './hooks/useUsuarioAtual';
 import { ListaConversas } from './components/ListaConversas';
 import { ChatHeader } from './components/ChatHeader';
 import { MensagensLista } from './components/MensagensLista';
@@ -8,19 +7,32 @@ import { CaixaTexto } from './components/CaixaTexto';
 import type { Conversa } from './mocks/conversasMock';
 import type { PessoaSelecionavel } from './mocks/pessoasMock';
 import { criarNovoCanal, fetchCanaisUsuario } from '../../services/api'; 
+// IMPORTAÇÃO CHAVE: Conecta o Chat ao mesmo gerenciador de login do suporte
+import { useAuthStore } from '../TI/SuporteTecnico/store/useAuthStore'; 
 
 export const BatePapoPagina: React.FC = () => {
   const { mensagens, carregando, conectarCanal, enviarMensagem } = useBatePapo();
-  const usuarioAtual = useUsuarioAtual();
+  
+  // Substituímos o hook antigo pelo seu Zustand Store global
+  const { usuario, fetchUsuarioLogado } = useAuthStore();
 
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [conversaAtiva, setConversaAtiva] = useState<Conversa | null>(null);
 
-  // AJUSTADO: Carrega o histórico passando o ID do usuário logado na URL sempre que o componente monta ou muda o ID
+  // 1. GARANTIA DE SESSÃO: Se a página atualizar e o estado sumir, força o Zustand a buscar o usuário de novo
   useEffect(() => {
-    if (!usuarioAtual?.id) return;
+    if (!usuario) {
+      fetchUsuarioLogado();
+    }
+  }, [usuario, fetchUsuarioLogado]);
 
-    fetchCanaisUsuario(usuarioAtual.id)
+  // 2. HISTÓRICO REAL: Dispara a busca no PostgreSQL usando o ID garantido do seu useAuthStore
+  useEffect(() => {
+    if (!usuario?.id) return;
+
+    console.log(`Chat integrado! Logado como: ${usuario.nome} (ID: ${usuario.id})`);
+
+    fetchCanaisUsuario(usuario.id)
       .then((canais: any[]) => {
         if (!canais) return;
         const listaMapeada: Conversa[] = canais.map((canal) => ({
@@ -33,8 +45,8 @@ export const BatePapoPagina: React.FC = () => {
         }));
         setConversas(listaMapeada);
       })
-      .catch((err) => console.error('Erro ao buscar histórico de conversas:', err));
-  }, [usuarioAtual?.id]);
+      .catch((err) => console.error('Erro ao buscar histórico de conversas no PostgreSQL:', err));
+  }, [usuario?.id]);
 
   useEffect(() => {
     if (conversaAtiva) conectarCanal(conversaAtiva.id);
@@ -50,7 +62,8 @@ export const BatePapoPagina: React.FC = () => {
       const canalCriado = await criarNovoCanal({
         nome: usuarioSelecionado.nome,
         tipo: 'PRIVADO',
-        usuarioIds: [usuarioSelecionado.id]
+        // Passa o ID do Gabriel Malheiro logado junto com o do Henrique para o Java vinculá-los no Set<User>
+        usuarioIds: [usuario.id, usuarioSelecionado.id]
       });
 
       const novaConversa: Conversa = {
@@ -87,7 +100,8 @@ export const BatePapoPagina: React.FC = () => {
       {conversaAtiva ? (
         <section className="flex-1 flex flex-col min-w-0">
           <ChatHeader conversa={conversaAtiva} />
-          <MensagensLista mensagens={mensagens} conversa={conversaAtiva} usuarioAtualId={usuarioAtual.id} carregando={carregando} />
+          {/* Injeta o ID real do Zustand na renderização da lista de balões */}
+          <MensagensLista mensagens={mensagens} conversa={conversaAtiva} usuarioAtualId={usuario?.id ?? 0} carregando={carregando} />
           <CaixaTexto placeholder={`Enviar mensagem para ${conversaAtiva.nome}`} onEnviar={(t) => enviarMensagem(conversaAtiva.id, t)} />
         </section>
       ) : (
