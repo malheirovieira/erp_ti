@@ -1,64 +1,84 @@
-import { API_URL, getAuthHeaders } from "../../../services/api";
-import type { AvisoResponse, AvisoRequest } from '../types/post';
+// src/pages/VisaoGeral/services/postService.ts
+
+import { API_URL, getAuthHeaders } from '../../../services/api';
+import type { AvisoResponse, ComentarioResponse, CriarAvisoPayload } from '../types/post';
+
+async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: getAuthHeaders(),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    const texto = await res.text();
+    throw new Error(`Erro ${res.status}: ${texto}`);
+  }
+
+  const texto = await res.text();
+  return texto ? JSON.parse(texto) : (undefined as T);
+}
 
 export const postService = {
-  listarFeed: async (): Promise<AvisoResponse[]> => {
-    const response = await fetch(`${API_URL}/avisos`, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
+  // ── Avisos ───────────────────────────────────────────────────────────────
+  listarFeed: () => req<AvisoResponse[]>('GET', '/avisos'),
 
-    if (!response.ok) {
-      throw new Error('Erro ao carregar o feed de avisos.');
-    }
+  criarAviso: (payload: CriarAvisoPayload) =>
+    req<AvisoResponse>('POST', '/avisos', payload),
 
-    return response.json();
-  },
+  editarAviso: (id: number, payload: Partial<CriarAvisoPayload>) =>
+    req<AvisoResponse>('PUT', `/avisos/${id}`, payload),
 
-  criarAviso: async (data: AvisoRequest): Promise<AvisoResponse> => {
-    const response = await fetch(`${API_URL}/avisos`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
+  excluirAviso: (id: number) =>
+    req<void>('DELETE', `/avisos/${id}`),
 
-    if (!response.ok) {
-      const textoErro = await response.text();
-      throw new Error(textoErro || 'Erro ao criar aviso.');
-    }
+  toggleFixar: (id: number) =>
+    req<{ fixado: boolean }>('PATCH', `/avisos/${id}/fixar`),
 
-    return response.json();
-  },
+  // ── Interações ───────────────────────────────────────────────────────────
+  toggleCurtir: (id: number) =>
+    req<{ totalCurtidas: number; euCurti: boolean }>('POST', `/avisos/${id}/curtir`),
 
-// Adicione junto com as outras funções (listarFeed, criarAviso...)
-  uploadImagemAviso: async (arquivo: File): Promise<string> => {
+  toggleFavoritar: (id: number) =>
+    req<{ euFavoritei: boolean }>('POST', `/avisos/${id}/favoritar`),
+
+  // ── Comentários ──────────────────────────────────────────────────────────
+  listarComentarios: (id: number) =>
+    req<ComentarioResponse[]>('GET', `/avisos/${id}/comentarios`),
+
+  // idPai opcional: se informado, cria uma resposta ao comentário pai
+  criarComentario: (idAviso: number, conteudo: string, idPai?: number) =>
+    req<ComentarioResponse>('POST', `/avisos/${idAviso}/comentarios`, {
+      conteudo,
+      idPai: idPai ?? null,
+    }),
+
+  excluirComentario: (idAviso: number, idComentario: number) =>
+    req<void>('DELETE', `/avisos/${idAviso}/comentarios/${idComentario}`),
+
+  // ── Uploads ──────────────────────────────────────────────────────────────
+  uploadImagem: async (file: File): Promise<string> => {
     const formData = new FormData();
-    formData.append('arquivo', arquivo);
-
-    const response = await fetch(`${API_URL}/avisos/upload`, {
+    formData.append('arquivo', file);
+    const res = await fetch(`${API_URL}/avisos/upload`, {
       method: 'POST',
-      headers: getAuthHeaders(true), // true para não enviar o Content-Type e o navegador montar o boundary
+      headers: getAuthHeaders(true),
       body: formData,
     });
-
-    if (!response.ok) {
-      throw new Error('Erro ao enviar a imagem.');
-    }
-
-    const data = await response.json();
+    if (!res.ok) throw new Error(`Erro no upload de imagem: ${await res.text()}`);
+    const data = await res.json();
     return data.url;
   },
 
-  
-  excluirAviso: async (idAviso: number): Promise<void> => {
-    const response = await fetch(`${API_URL}/avisos/${idAviso}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
+  uploadAnexo: async (file: File): Promise<{ url: string; nomeOriginal: string }> => {
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    const res = await fetch(`${API_URL}/avisos/upload-anexo`, {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      body: formData,
     });
-
-    if (!response.ok) {
-      const textoErro = await response.text();
-      throw new Error(textoErro || 'Erro ao excluir aviso.');
-    }
-  }
+    if (!res.ok) throw new Error(`Erro no upload de anexo: ${await res.text()}`);
+    return res.json();
+  },
 };
